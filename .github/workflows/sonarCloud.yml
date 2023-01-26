@@ -22,7 +22,7 @@ jobs:
           cd ../
           mkdir build
           cd ./acts
-          cmake -S . -B ../build -D ACTS_USE_SYSTEM_BOOST=OFF -D USE_SYSTEM_EIGEN3=OFF
+          cmake -S . -B ../build -D ACTS_USE_SYSTEM_BOOST=OFF -D ACTS_USE_SYSTEM_EIGEN3=OFF
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build ../build
       - name: Run sonar-scanner
         env:
