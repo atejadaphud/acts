@@ -10,6 +10,11 @@
 
 #include "Acts/Plugins/Geant4/Geant4Converters.hpp"
 #include "Acts/Plugins/Geant4/Geant4DetectorElement.hpp"
+#include "Acts/Plugins/Geant4/Geant4PhysicalVolumeSelectors.hpp"
+#include "Acts/Surfaces/Surface.hpp"
+#include "Acts/Utilities/StringHelpers.hpp"
+
+#include <utility>
 
 #include "G4LogicalVolume.hh"
 #include "G4VPhysicalVolume.hh"
@@ -21,12 +26,13 @@ void Acts::Geant4DetectorSurfaceFactory::construct(
   auto g4Translation = g4PhysVol.GetTranslation();
   auto g4Rotation = g4PhysVol.GetRotation();
 
-  G4Transform3D g4Transform =
-      (g4Rotation == nullptr)
-          ? G4Transform3D(CLHEP::HepRotation(), g4Translation)
-          : G4Transform3D(*g4Rotation, g4Translation);
+  auto newTranslation =
+      g4ToGlobal.getTranslation() + g4ToGlobal.getRotation() * g4Translation;
+  auto newRotation = (g4Rotation == nullptr)
+                         ? g4ToGlobal.getRotation() * CLHEP::HepRotation()
+                         : g4ToGlobal.getRotation() * g4Rotation->inverse();
 
-  G4Transform3D newToGlobal = g4ToGlobal * g4Transform;
+  G4Transform3D newToGlobal(newRotation, newTranslation);
 
   // Get the logical volume
   auto g4LogicalVolume = g4PhysVol.GetLogicalVolume();
@@ -37,30 +43,38 @@ void Acts::Geant4DetectorSurfaceFactory::construct(
   }
 
   // Check if the volume is accepted by a sensitive or passive selector
-  bool sensitive = option.sensitiveSurfaceSelector != nullptr and
+  bool sensitive = option.sensitiveSurfaceSelector != nullptr &&
                    option.sensitiveSurfaceSelector->select(g4PhysVol);
-  bool passive = option.passiveSurfaceSelector != nullptr and
+  bool passive = option.passiveSurfaceSelector != nullptr &&
                  option.passiveSurfaceSelector->select(g4PhysVol);
-  if (sensitive or passive) {
+
+  if (sensitive || passive) {
     // Conversion and selection code
     ++cache.matchedG4Volumes;
+
     // Attempt the conversion
     auto surface = Acts::Geant4PhysicalVolumeConverter{}.surface(
         g4PhysVol, Geant4AlgebraConverter{}.transform(newToGlobal),
         option.convertMaterial, option.convertedMaterialThickness);
+
     if (surface != nullptr) {
       ++cache.convertedSurfaces;
-      if (sensitive) {
-        cache.sensitiveSurfaces.push_back(
-            {std::make_shared<Acts::Geant4DetectorElement>(surface, 0.1,
-                                                           g4PhysVol),
-             surface});
-      } else {
-        cache.passiveSurfaces.push_back(surface);
-      }
       // Count the material conversion
       if (surface->surfaceMaterial() != nullptr) {
         ++cache.convertedMaterials;
+      }
+
+      if (sensitive) {
+        // empty geometry context is fine as the transform was just passed down
+        // without context before
+        auto detectorElement = std::make_shared<Acts::Geant4DetectorElement>(
+            surface, g4PhysVol, surface->transform({}), 0.1);
+        surface->assignDetectorElement(*detectorElement);
+
+        cache.sensitiveSurfaces.push_back(
+            {std::move(detectorElement), std::move(surface)});
+      } else {
+        cache.passiveSurfaces.push_back(std::move(surface));
       }
     }
   }

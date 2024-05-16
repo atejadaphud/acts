@@ -1,13 +1,9 @@
-from pathlib import Path
-
 import pytest
 
 from helpers import dd4hepEnabled
 
-from common import getOpenDataDetectorDirectory
-from acts.examples.odd import getOpenDataDetector
-
 import acts.examples
+from acts.examples.odd import getOpenDataDetector
 
 
 def count_surfaces(geo):
@@ -44,6 +40,7 @@ def test_telescope_geometry():
     detector, geo, contextDecorators = acts.examples.TelescopeDetector.create(
         bounds=[100, 100],
         positions=[10 * i for i in range(n_surfaces)],
+        stereos=[0] * n_surfaces,
         binValue=0,
     )
 
@@ -56,30 +53,21 @@ def test_telescope_geometry():
 
 @pytest.mark.skipif(not dd4hepEnabled, reason="DD4hep is not set up")
 def test_odd():
-    config = acts.MaterialMapJsonConverter.Config()
-    matDeco = acts.JsonMaterialDecorator(
-        rConfig=config,
-        jFileName=str(
-            getOpenDataDetectorDirectory() / "config/odd-material-mapping-config.json"
-        ),
-        level=acts.logging.WARNING,
-    )
+    detector, trackingGeometry, decorators = getOpenDataDetector()
 
-    detector, geo, _ = getOpenDataDetector(getOpenDataDetectorDirectory(), matDeco)
+    trackingGeometry.visitSurfaces(check_extra_odd)
 
-    geo.visitSurfaces(check_extra_odd)
-
-    assert count_surfaces(geo) == 18824
+    assert count_surfaces(trackingGeometry) == 18824
 
 
 def test_aligned_detector():
-    detector, geo, deco = acts.examples.AlignedDetector.create()
+    detector, trackingGeometry, decorators = acts.examples.AlignedDetector.create()
 
     assert detector is not None
-    assert geo is not None
-    assert deco is not None
+    assert trackingGeometry is not None
+    assert decorators is not None
 
-    assert count_surfaces(geo) == 18728
+    assert count_surfaces(trackingGeometry) == 18728
 
 
 import itertools

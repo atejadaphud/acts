@@ -9,9 +9,9 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 
-namespace Acts {
-namespace detail {
+namespace Acts::detail {
 /// The StepperExtensionList allows to add an arbitrary number of step
 /// evaluation algorithms for the RKN4 evaluation. These can be categorised in
 /// two general types:
@@ -105,5 +105,4 @@ struct HighestValidAuctioneer {
   }
 };
 
-}  // namespace detail
-}  // namespace Acts
+}  // namespace Acts::detail

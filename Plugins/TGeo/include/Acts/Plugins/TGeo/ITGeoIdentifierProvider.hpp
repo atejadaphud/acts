@@ -6,8 +6,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#pragma once
+
 #include "Acts/Geometry/GeometryContext.hpp"
-#include "Acts/Plugins/Identification/Identifier.hpp"
+#include "Acts/Plugins/TGeo/TGeoDetectorElement.hpp"
 
 class TGeoNode;
 
@@ -15,15 +17,15 @@ namespace Acts {
 
 /// @brief ITGeoIdentierProvider
 ///
-/// Interface class that provides an Indentifier from a TGeoNode
+/// Interface class that provides an Identifier from a TGeoNode
 class ITGeoIdentifierProvider {
  public:
   /// Take a geometry context and a TGeoNode and provide an identifier
   ///
   /// @param gctx is a geometry context object
   /// @param tgnode is a TGeoNode that is translated
-  virtual Identifier identify(const GeometryContext& gctx,
-                              const TGeoNode& tgnode) const = 0;
+  virtual TGeoDetectorElement::Identifier identify(
+      const GeometryContext& gctx, const TGeoNode& tgnode) const = 0;
 };
 
 }  // namespace Acts

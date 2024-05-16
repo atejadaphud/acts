@@ -7,6 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #pragma once
 
+#include "Acts/Geometry/GeometryContext.hpp"
 #include "ActsExamples/EventData/Cluster.hpp"
 #include "ActsExamples/EventData/Measurement.hpp"
 #include "ActsExamples/EventData/Trajectories.hpp"
@@ -26,15 +27,17 @@
 #include "edm4hep/TrackerHitCollection.h"
 #include "edm4hep/TrackerHitPlane.h"
 
-namespace ActsExamples {
-namespace EDM4hepUtil {
-
-static constexpr std::int32_t EDM4HEP_ACTS_POSITION_TYPE = 42;
+namespace ActsExamples::EDM4hepUtil {
 
 using MapParticleIdFrom =
-    std::function<ActsFatras::Barcode(edm4hep::MCParticle particle)>;
+    std::function<ActsFatras::Barcode(const edm4hep::MCParticle& particle)>;
 using MapParticleIdTo =
     std::function<edm4hep::MCParticle(ActsFatras::Barcode particleId)>;
+
+inline ActsFatras::Barcode zeroParticleMapper(
+    const edm4hep::MCParticle& /*particle*/) {
+  return 0;
+}
 
 using MapGeometryIdFrom =
     std::function<Acts::GeometryIdentifier(std::uint64_t cellId)>;
@@ -46,8 +49,9 @@ using MapGeometryIdTo =
 /// Inpersistent information:
 /// - particle ID
 /// - process
-ActsFatras::Particle readParticle(const edm4hep::MCParticle& from,
-                                  const MapParticleIdFrom& particleMapper);
+ActsFatras::Particle readParticle(
+    const edm4hep::MCParticle& from,
+    const MapParticleIdFrom& particleMapper = zeroParticleMapper);
 
 /// Write a Fatras particle into EDM4hep.
 ///
@@ -113,14 +117,24 @@ void writeMeasurement(const Measurement& from,
 /// Inpersistent information:
 /// - trajectory state incomplete
 /// - relation to the particles
-///
-/// Known issues:
-/// - curvature parameter
-/// - track state local coordinates are written to (D0,Z0)
-/// - covariance incorrect
-void writeTrajectory(const Trajectories& from, edm4hep::MutableTrack to,
+void writeTrajectory(const Acts::GeometryContext& gctx, double Bz,
+                     const Trajectories& from, edm4hep::MutableTrack to,
                      std::size_t fromIndex,
+                     const Acts::ParticleHypothesis& particleHypothesis,
                      const IndexMultimap<ActsFatras::Barcode>& hitParticlesMap);
 
-}  // namespace EDM4hepUtil
-}  // namespace ActsExamples
+/// Helper function to either return an id as is, or unpack an index from it
+/// if it is a podio::ObjectID.
+/// @tparam T The type of the id.
+/// @param o The id to convert.
+/// @return The id as an unsigned integer.
+template <typename T>
+uint64_t podioObjectIDToInteger(T&& o) {
+  if constexpr (!std::is_same_v<T, podio::ObjectID>) {
+    return o;
+  } else {
+    return o.index;
+  }
+}
+
+}  // namespace ActsExamples::EDM4hepUtil

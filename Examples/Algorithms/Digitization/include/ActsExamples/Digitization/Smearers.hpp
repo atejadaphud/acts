@@ -12,6 +12,7 @@
 #include "Acts/Utilities/Result.hpp"
 #include "ActsExamples/Framework/RandomNumbers.hpp"
 #include "ActsFatras/Digitization/DigitizationError.hpp"
+#include "ActsFatras/Digitization/UncorrelatedHitSmearer.hpp"
 
 #include <cmath>
 #include <limits>
@@ -20,8 +21,23 @@
 #include <tuple>
 #include <utility>
 
-namespace ActsExamples {
-namespace Digitization {
+namespace ActsExamples::Digitization {
+
+/// Exact smearing of a single parameter.
+///
+struct Exact {
+  /// Call operator for the SmearFunction caller interface.
+  ///
+  /// @param value parameter to be smeared
+  /// @param rnd random generator to be used for the call
+  ///
+  /// @return a Result that is always ok(), and just returns
+  /// the value and a stddev of 0.0
+  Acts::Result<std::pair<double, double>> operator()(
+      double value, RandomEngine& /*rnd*/) const {
+    return std::pair{value, 0.0};
+  }
+};
 
 /// Gaussian smearing of a single parameter.
 ///
@@ -69,7 +85,7 @@ struct GaussTrunc {
                                                      RandomEngine& rnd) const {
     std::normal_distribution<> dist{0., sigma};
     double svalue = value + dist(rnd);
-    if (svalue >= range.first and svalue <= range.second) {
+    if (svalue >= range.first && svalue <= range.second) {
       return std::pair{svalue, dist.stddev()};
     }
     return ActsFatras::DigitizationError::SmearingOutOfRange;
@@ -83,7 +99,7 @@ struct GaussTrunc {
 struct GaussClipped {
   double sigma;
 
-  size_t maxAttemps = 1000;
+  std::size_t maxAttemps = 1000;
 
   std::pair<double, double> range = {std::numeric_limits<double>::lowest(),
                                      std::numeric_limits<double>::max()};
@@ -103,9 +119,9 @@ struct GaussClipped {
   Acts::Result<std::pair<double, double>> operator()(double value,
                                                      RandomEngine& rnd) const {
     std::normal_distribution<> dist{0., sigma};
-    for (size_t attempt = 0; attempt < maxAttemps; ++attempt) {
+    for (std::size_t attempt = 0; attempt < maxAttemps; ++attempt) {
       double svalue = value + dist(rnd);
-      if (svalue >= range.first and svalue <= range.second) {
+      if (svalue >= range.first && svalue <= range.second) {
         return std::pair{svalue, dist.stddev()};
       }
     }
@@ -121,9 +137,10 @@ struct Uniform {
 
   /// Construct with a @param pitch standard deviation and @param range
   Uniform(double pitch, const std::pair<double, double>& range_)
-      : binningData(Acts::open, Acts::binX,
-                    static_cast<size_t>((range_.second - range_.first) / pitch),
-                    range_.first, range_.second) {}
+      : binningData(
+            Acts::open, Acts::binX,
+            static_cast<std::size_t>((range_.second - range_.first) / pitch),
+            range_.first, range_.second) {}
 
   /// Constructor with a binning data in order to get the bin borders.
   ///
@@ -138,11 +155,11 @@ struct Uniform {
   /// @return a Result is uniformly distributed between bin borders
   Acts::Result<std::pair<double, double>> operator()(double value,
                                                      RandomEngine& rnd) const {
-    if (binningData.min < value and binningData.max > value) {
+    if (binningData.min < value && binningData.max > value) {
       auto bin = binningData.search(value);
       auto lower = binningData.boundaries()[bin];
       auto higher = binningData.boundaries()[bin + 1];
-      std::uniform_real_distribution<> dist{0., 1.};
+      std::uniform_real_distribution<double> dist{0., 1.};
       double svalue = lower + (higher - lower) * dist(rnd);
       return std::pair{svalue, (higher - lower) / std::sqrt(12.)};
     }
@@ -158,9 +175,10 @@ struct Digital {
 
   /// Construct with a @param pitch standard deviation and @param range
   Digital(double pitch, const std::pair<double, double>& range_)
-      : binningData(Acts::open, Acts::binX,
-                    static_cast<size_t>((range_.second - range_.first) / pitch),
-                    range_.first, range_.second) {}
+      : binningData(
+            Acts::open, Acts::binX,
+            static_cast<std::size_t>((range_.second - range_.first) / pitch),
+            range_.first, range_.second) {}
 
   /// Constructor with a bin utility in order to get the bin borders.
   ///
@@ -174,8 +192,8 @@ struct Digital {
   ///
   /// @return a Result is uniformly distributed between bin borders
   Acts::Result<std::pair<double, double>> operator()(
-      double value, RandomEngine& /*unused*/) const {
-    if (binningData.min < value and binningData.max > value) {
+      double value, RandomEngine& /*rnd*/) const {
+    if (binningData.min < value && binningData.max > value) {
       auto bin = binningData.search(value);
       auto lower = binningData.boundaries()[bin];
       auto higher = binningData.boundaries()[bin + 1];
@@ -186,5 +204,4 @@ struct Digital {
   }
 };
 
-}  // namespace Digitization
-}  // namespace ActsExamples
+}  // namespace ActsExamples::Digitization

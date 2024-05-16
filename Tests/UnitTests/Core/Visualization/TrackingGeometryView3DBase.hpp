@@ -18,22 +18,20 @@
 #include <sstream>
 #include <string>
 
-namespace Acts {
-
-namespace TrackingGeometryView3DTest {
+namespace Acts::TrackingGeometryView3DTest {
 
 GeometryContext tgContext = GeometryContext();
 
 Test::CylindricalTrackingGeometry cGeometry(tgContext);
 auto tGeometry = cGeometry();
 
-/// Helper method to visualiza all types of surfaces
+/// Helper method to visualize all types of surfaces
 ///
-/// @param helper The visualziation helper
+/// @param helper The visualization helper
 /// @param triangulate The directive whether to create triangular meshes
 /// @param tag The test tag (mode) identification
 ///
-/// @return a string containing all written caracters
+/// @return a string containing all written characters
 
 static inline std::string run(IVisualization3D& helper, bool triangulate,
                               const std::string& tag) {
@@ -66,5 +64,4 @@ static inline std::string run(IVisualization3D& helper, bool triangulate,
   return cStream.str();
 }
 
-}  // namespace TrackingGeometryView3DTest
-}  // namespace Acts
+}  // namespace Acts::TrackingGeometryView3DTest

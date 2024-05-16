@@ -9,27 +9,28 @@
 #pragma once
 
 #include "Acts/Geometry/TrackingVolume.hpp"
+#include "Acts/Material/IVolumeMaterial.hpp"
 #include "Acts/Plugins/Json/ActsJson.hpp"
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 // Custom Json encoder/decoders. Naming is mandated by nlohmann::json and thus
 // can not match our naming guidelines.
 namespace Acts {
-
-using TrackingVolumePointer = const Acts::TrackingVolume*;
-using TrackingVolumeAndMaterial =
-    std::pair<const Acts::TrackingVolume*,
-              std::shared_ptr<const Acts::IVolumeMaterial>>;
+class IVolumeMaterial;
+class TrackingVolume;
 
 /// Conversion of a pair of tracking volume and material used for the material
 /// mapping
-void to_json(nlohmann::json& j, const TrackingVolumeAndMaterial& volume);
-
-/// Conversion of a const pointer on a tracking volume used to write the
-/// geometry
-void to_json(nlohmann::json& j, const TrackingVolumePointer& volume);
+void to_json(
+    nlohmann::json& j,
+    const std::pair<const Acts::TrackingVolume*,
+                    std::shared_ptr<const Acts::IVolumeMaterial>>& volume);
 
 /// Conversion of a tracking volume
 void to_json(nlohmann::json& j, const Acts::TrackingVolume& volume);

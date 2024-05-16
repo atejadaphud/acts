@@ -11,9 +11,7 @@
 #include <boost/hana/set.hpp>
 #include <boost/hana/type.hpp>
 
-namespace Acts {
-
-namespace detail {
+namespace Acts::detail {
 namespace hana = boost::hana;
 
 /**
@@ -49,7 +47,7 @@ struct action_type_extractor {
 /**
  * The main type collector. This loops over the given tuple of actions or
  * aborters,
- * filters by predicate and uses extracter to construct a resulting output
+ * filters by predicate and uses extractor to construct a resulting output
  * set.
  */
 constexpr auto type_collector = [](auto t_, auto predicate, auto extractor) {
@@ -105,6 +103,4 @@ constexpr bool has_action_type_v =
  */
 template <typename T>
 using action_type_t = typename action_type_extractor::extractor_impl<T>;
-}  // namespace detail
-
-}  // namespace Acts
+}  // namespace Acts::detail

@@ -13,14 +13,13 @@
 
 #include <array>
 
-namespace Acts {
-namespace detail {
+namespace Acts::detail {
 
 struct IntersectionHelper2D {
   /// Intersect two segments
   ///
-  /// @param s0 The Start of the segement
-  /// @param s1 The end of the segement
+  /// @param s0 The Start of the segment
+  /// @param s1 The end of the segment
   /// @param origin The Start of intersection line
   /// @param dir The Direction of intersection line
   ///
@@ -73,5 +72,4 @@ struct IntersectionHelper2D {
 
 };  // struct IntersectionHelper2D
 
-}  // namespace detail
-}  // namespace Acts
+}  // namespace Acts::detail

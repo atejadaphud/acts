@@ -13,14 +13,18 @@
 #include "Acts/Plugins/TGeo/TGeoParser.hpp"
 #include "Acts/Plugins/TGeo/TGeoSurfaceConverter.hpp"
 #include "Acts/Tests/CommonHelpers/DataDirectory.hpp"
+#include "Acts/Utilities/BinningType.hpp"
 #include "Acts/Visualization/GeometryView3D.hpp"
 #include "Acts/Visualization/ObjVisualization3D.hpp"
 
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "TGeoManager.h"
 
-namespace Acts {
-
-namespace Test {
+namespace Acts::Test {
 
 /// @brief struct to load the global geometry
 struct RootGeometry {
@@ -59,7 +63,7 @@ BOOST_AUTO_TEST_CASE(TGeoParser_Pixel) {
     for (auto& snode : tgpState.selectedNodes) {
       const auto& shape = *(snode.node->GetVolume()->GetShape());
       const auto& transform = *(snode.transform.get());
-      auto surface =
+      auto [surface, thickness] =
           TGeoSurfaceConverter::toSurface(shape, transform, axes, scale);
       GeometryView3D::drawSurface(objVis, *surface, tgContext);
     }
@@ -67,7 +71,7 @@ BOOST_AUTO_TEST_CASE(TGeoParser_Pixel) {
   }
 }
 
-/// @brief Unit test Parsing a TGeo geometrys
+/// @brief Unit test Parsing a TGeo geometries
 BOOST_AUTO_TEST_CASE(TGeoParser_Pixel_SelectInnermost) {
   if (gGeoManager != nullptr) {
     std::string volumeName = "*";
@@ -95,13 +99,12 @@ BOOST_AUTO_TEST_CASE(TGeoParser_Pixel_SelectInnermost) {
     for (auto& snode : tgpState.selectedNodes) {
       const auto& shape = *(snode.node->GetVolume()->GetShape());
       const auto& transform = *(snode.transform.get());
-      auto surface = TGeoSurfaceConverter::toSurface(shape, transform, axes,
-                                                     tgpOptions.unit);
+      auto [surface, thickness] = TGeoSurfaceConverter::toSurface(
+          shape, transform, axes, tgpOptions.unit);
       GeometryView3D::drawSurface(objVis, *surface, tgContext);
     }
     objVis.write("PixelActive_Innermost");
   }
 }
 
-}  // namespace Test
-}  // namespace Acts
+}  // namespace Acts::Test

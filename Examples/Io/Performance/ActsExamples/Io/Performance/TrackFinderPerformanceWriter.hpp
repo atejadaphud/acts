@@ -1,6 +1,6 @@
 // This file is part of the Acts project.
 //
-// Copyright (C) 2019-2020 CERN for the benefit of the Acts project
+// Copyright (C) 2019-2024 CERN for the benefit of the Acts project
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,13 +8,17 @@
 
 #pragma once
 
+#include "Acts/Utilities/Logger.hpp"
 #include "ActsExamples/EventData/ProtoTrack.hpp"
+#include "ActsExamples/EventData/TruthMatching.hpp"
+#include "ActsExamples/Framework/ProcessCode.hpp"
 #include "ActsExamples/Framework/WriterT.hpp"
 
 #include <memory>
 #include <string>
 
 namespace ActsExamples {
+struct AlgorithmContext;
 
 /// Write track finder performance measures.
 ///
@@ -25,10 +29,12 @@ class TrackFinderPerformanceWriter final : public WriterT<ProtoTrackContainer> {
   struct Config {
     /// Input reconstructed proto tracks collection.
     std::string inputProtoTracks;
-    /// Input hit-particles map collection.
-    std::string inputMeasurementParticlesMap;
     /// Input particles collection.
     std::string inputParticles;
+    /// Input hit-particles map collection.
+    std::string inputMeasurementParticlesMap;
+    /// Input proto track-particle matching.
+    std::string inputProtoTrackParticleMatching;
     /// Output filename.
     std::string filePath = "performance_track_finder.root";
     /// Output file mode
@@ -46,7 +52,7 @@ class TrackFinderPerformanceWriter final : public WriterT<ProtoTrackContainer> {
 
   ~TrackFinderPerformanceWriter() override;
 
-  ProcessCode endRun() override;
+  ProcessCode finalize() override;
 
   /// Get readonly access to the config parameters
   const Config& config() const;
@@ -56,6 +62,7 @@ class TrackFinderPerformanceWriter final : public WriterT<ProtoTrackContainer> {
                      const ProtoTrackContainer& tracks) override;
 
   struct Impl;
+
   std::unique_ptr<Impl> m_impl;
 };
 

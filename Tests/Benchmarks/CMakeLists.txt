@@ -1,5 +1,5 @@
 # benchmarks tests are not registered with a common target
-# add an benchmark exectuable w/ default dependencies
+# add an benchmark executable w/ default dependencies
 macro(add_benchmark _name)
   # automatically prefix the target name
   set(_target "ActsBenchmark${_name}")
@@ -23,9 +23,11 @@ endmacro()
 add_benchmark(AtlasStepper AtlasStepperBenchmark.cpp)
 add_benchmark(BoundaryCheck BoundaryCheckBenchmark.cpp)
 add_benchmark(BinUtility BinUtilityBenchmark.cpp)
-add_benchmark(CovarianceTransport CovarianceTransportBenchmark.cpp)
 add_benchmark(EigenStepper EigenStepperBenchmark.cpp)
 add_benchmark(SolenoidField SolenoidFieldBenchmark.cpp)
 add_benchmark(SurfaceIntersection SurfaceIntersectionBenchmark.cpp)
-add_benchmark(RayFrustumBenchmark RayFrustumBenchmark.cpp)
-add_benchmark(AnnulusBoundsBenchmark AnnulusBoundsBenchmark.cpp)
+add_benchmark(RayFrustum RayFrustumBenchmark.cpp)
+add_benchmark(AnnulusBounds AnnulusBoundsBenchmark.cpp)
+add_benchmark(StraightLineStepper StraightLineStepperBenchmark.cpp)
+add_benchmark(QuickMath QuickMathBenchmark.cpp)
+add_benchmark(Stepper StepperBenchmark.cpp)

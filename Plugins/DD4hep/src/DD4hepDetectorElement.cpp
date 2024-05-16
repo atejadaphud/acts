@@ -8,20 +8,18 @@
 
 #include "Acts/Plugins/DD4hep/DD4hepDetectorElement.hpp"
 
-#include "Acts/Definitions/Units.hpp"
-#include "Acts/Surfaces/RectangleBounds.hpp"
-#include "Acts/Surfaces/Surface.hpp"
-#include "Acts/Surfaces/TrapezoidBounds.hpp"
+#include <utility>
 
-#include <DD4hep/CartesianGridXY.h>
+#include <DD4hep/Alignments.h>
+#include <DD4hep/DetElement.h>
+#include <DD4hep/Volumes.h>
 
 Acts::DD4hepDetectorElement::DD4hepDetectorElement(
     const dd4hep::DetElement detElement, const std::string& axes, double scalor,
-    bool /*isDisc*/, std::shared_ptr<const Acts::ISurfaceMaterial> material,
-    const std::shared_ptr<
-        const Acts::DigitizationModule>& /*digitizationModule*/)
-    : Acts::TGeoDetectorElement(Identifier(detElement.volumeID()),
-                                *(detElement.placement().ptr()),
-                                detElement.nominal().worldTransformation(),
-                                axes, scalor, std::move(material)),
+    bool /*isDisc*/, std::shared_ptr<const ISurfaceMaterial> material)
+    : TGeoDetectorElement(
+          static_cast<TGeoDetectorElement::Identifier>(detElement.volumeID()),
+          *(detElement.placement().ptr()),
+          detElement.nominal().worldTransformation(), axes, scalor,
+          std::move(material)),
       m_detElement(detElement) {}

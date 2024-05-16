@@ -12,12 +12,12 @@
 #include "Acts/Material/Material.hpp"
 #include "Acts/Material/MaterialSlab.hpp"
 #include "Acts/Utilities/BinUtility.hpp"
+#include "Acts/Utilities/BinningType.hpp"
 
-#include <climits>
+#include <utility>
+#include <vector>
 
-namespace Acts {
-
-namespace Test {
+namespace Acts::Test {
 
 /// Test the constructors
 BOOST_AUTO_TEST_CASE(BinnedSurfaceMaterial_construction_test) {
@@ -57,5 +57,4 @@ BOOST_AUTO_TEST_CASE(BinnedSurfaceMaterial_construction_test) {
   BinnedSurfaceMaterial bsmMoveAssigned(std::move(bsmAssigned));
 }
 
-}  // namespace Test
-}  // namespace Acts
+}  // namespace Acts::Test

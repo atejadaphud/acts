@@ -11,20 +11,23 @@
 #include <boost/test/unit_test.hpp>
 
 #include "Acts/Definitions/Algebra.hpp"
-#include "Acts/Geometry/PlaneLayer.hpp"
-#include "Acts/Material/HomogeneousSurfaceMaterial.hpp"
+#include "Acts/Geometry/GeometryContext.hpp"
+#include "Acts/Surfaces/LineBounds.hpp"
 #include "Acts/Surfaces/RectangleBounds.hpp"
 #include "Acts/Surfaces/StrawSurface.hpp"
+#include "Acts/Surfaces/Surface.hpp"
 #include "Acts/Tests/CommonHelpers/DetectorElementStub.hpp"
 
-#include <limits>
-
-using boost::test_tools::output_test_stream;
-namespace utf = boost::unit_test;
+#include <memory>
+#include <string>
 
 namespace Acts {
+class PlanarBounds;
+}  // namespace Acts
 
-namespace Test {
+namespace utf = boost::unit_test;
+
+namespace Acts::Test {
 
 // Create a test context
 GeometryContext tgContext = GeometryContext();
@@ -127,6 +130,4 @@ BOOST_AUTO_TEST_CASE(EqualityOperators) {
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}  // namespace Test
-
-}  // namespace Acts
+}  // namespace Acts::Test

@@ -9,20 +9,21 @@
 #include <boost/test/data/test_case.hpp>
 #include <boost/test/unit_test.hpp>
 
-#include "Acts/Tests/CommonHelpers/FloatComparisons.hpp"
 #include "Acts/Tests/CommonHelpers/PredefinedMaterials.hpp"
+#include "ActsFatras/EventData/Particle.hpp"
 #include "ActsFatras/Physics/ElectroMagnetic/BetheBloch.hpp"
 
+#include <array>
 #include <random>
 
 #include "Dataset.hpp"
 
 using Generator = std::ranlux48;
 
-BOOST_DATA_TEST_CASE(FatrasBetheBloch, Dataset::parameters, pdg, phi, lambda, p,
+BOOST_DATA_TEST_CASE(FatrasBetheBloch, Dataset::parameters, pdg, phi, theta, p,
                      seed) {
   Generator gen(seed);
-  ActsFatras::Particle before = Dataset::makeParticle(pdg, phi, lambda, p);
+  ActsFatras::Particle before = Dataset::makeParticle(pdg, phi, theta, p);
   ActsFatras::Particle after = before;
 
   ActsFatras::BetheBloch process;

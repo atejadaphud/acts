@@ -1,7 +1,6 @@
 target_sources(
   ActsCore
   PRIVATE
-    AbstractVolume.cpp
     ConeLayer.cpp
     ConeVolumeBounds.cpp
     CuboidVolumeBounds.cpp
@@ -13,8 +12,6 @@ target_sources(
     CylinderVolumeHelper.cpp
     Extent.cpp
     KDTreeTrackingGeometryBuilder.cpp
-    Detector.cpp
-    DetectorVolume.cpp
     DiscLayer.cpp
     GenericApproachDescriptor.cpp
     GenericCuboidVolumeBounds.cpp
@@ -27,9 +24,7 @@ target_sources(
     PassiveLayerBuilder.cpp
     PlaneLayer.cpp
     Polyhedron.cpp
-    Portal.cpp
     ProtoLayer.cpp
-    ProtoDetector.cpp
     ProtoLayerHelper.cpp
     SurfaceArrayCreator.cpp
     TrackingGeometry.cpp

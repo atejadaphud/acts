@@ -8,8 +8,7 @@
 
 #pragma once
 
-namespace Acts {
-namespace detail {
+namespace Acts::detail {
 /// Enum which determines how the axis handle its outer boundaries
 /// possible values values
 /// - Open is the default behaviour: out of bounds
@@ -17,7 +16,7 @@ namespace detail {
 /// - Bound: out-of-bounds positions resolve to first/last bin
 /// respectively
 /// - Closed: out-of-bounds positions resolve to the outermost
-/// bin on the oppsite side
+/// bin on the opposite side
 enum class AxisBoundaryType { Open, Bound, Closed };
 
 /// Enum which determines the binning type of the axis
@@ -30,7 +29,7 @@ enum class AxisType { Equidistant, Variable };
 /// binning structures are supported.
 ///
 /// Bin intervals are defined such that the lower bound is closed and the
-/// uper bound is open.
+/// upper bound is open.
 ///
 /// @tparam equidistant flag whether binning is equidistant (@c true)
 ///                     or not (@c false)
@@ -40,5 +39,4 @@ class Axis;
 using EquidistantAxis = Axis<AxisType::Equidistant>;
 using VariableAxis = Axis<AxisType::Variable>;
 
-}  // namespace detail
-}  // namespace Acts
+}  // namespace Acts::detail

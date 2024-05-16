@@ -12,10 +12,15 @@
 #include "Acts/Geometry/GeometryContext.hpp"
 #include "Acts/Geometry/GeometryIdentifier.hpp"
 #include "Acts/Geometry/TrackingVolume.hpp"
+#include "Acts/Geometry/TrackingVolumeVisitorConcept.hpp"
+#include "Acts/Surfaces/SurfaceVisitorConcept.hpp"
+#include "Acts/Utilities/Concepts.hpp"
+#include "Acts/Utilities/Logger.hpp"
 
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 namespace Acts {
 
@@ -23,6 +28,7 @@ class Layer;
 class Surface;
 class PerigeeSurface;
 class IMaterialDecorator;
+class TrackingVolume;
 
 using TrackingVolumePtr = std::shared_ptr<const TrackingVolume>;
 using MutableTrackingVolumePtr = std::shared_ptr<TrackingVolume>;
@@ -33,7 +39,7 @@ using MutableTrackingVolumePtr = std::shared_ptr<TrackingVolume>;
 ///
 ///  It enables both, a global search for an asociatedVolume
 ///  (respectively, if existing, a global search of an associated Layer or the
-///  next associated Layer), such as a continous navigation by BoundarySurfaces
+///  next associated Layer), such as a continuous navigation by BoundarySurfaces
 ///  between the confined TrackingVolumes.
 class TrackingGeometry {
   /// Give the GeometryBuilder friend rights
@@ -46,9 +52,11 @@ class TrackingGeometry {
   /// @param materialDecorator is a dediated decorator that can assign
   ///        surface or volume based material to the TrackingVolume
   /// @param hook Identifier hook to be applied to surfaces
+  /// @param logger instance of a logger (defaulting to the "silent" one)
   TrackingGeometry(const MutableTrackingVolumePtr& highestVolume,
                    const IMaterialDecorator* materialDecorator = nullptr,
-                   const GeometryIdentifierHook& hook = {});
+                   const GeometryIdentifierHook& hook = {},
+                   const Logger& logger = getDummyLogger());
 
   /// Destructor
   ~TrackingGeometry();
@@ -56,6 +64,11 @@ class TrackingGeometry {
   /// Access to the world volume
   /// @return plain pointer to the world volume
   const TrackingVolume* highestTrackingVolume() const;
+
+  /// Access to the world volume
+  /// @return shared pointer to the world volume
+  const std::shared_ptr<const TrackingVolume>& highestTrackingVolumeShared()
+      const;
 
   /// return the lowest tracking Volume
   ///
@@ -88,15 +101,48 @@ class TrackingGeometry {
   ///         (could be a null pointer)
   const Surface* getBeamline() const;
 
+  /// @brief Visit all reachable surfaces
+  ///
+  /// @tparam visitor_t Type of the callable visitor
+  ///
+  /// @param visitor The callable. Will be called for each reachable surface
+  /// that is found, a selection of the surfaces can be done in the visitor
+  /// @param restrictToSensitives If true, only sensitive surfaces are visited
+  ///
+  /// @note If a context is needed for the visit, the vistitor has to provide
+  /// this, e.g. as a private member
+  template <ACTS_CONCEPT(SurfaceVisitor) visitor_t>
+  void visitSurfaces(visitor_t&& visitor, bool restrictToSensitives) const {
+    highestTrackingVolume()->template visitSurfaces<visitor_t>(
+        std::forward<visitor_t>(visitor), restrictToSensitives);
+  }
+
   /// @brief Visit all sensitive surfaces
   ///
   /// @tparam visitor_t Type of the callable visitor
   ///
   /// @param visitor The callable. Will be called for each sensitive surface
-  /// that is found
-  template <typename visitor_t>
+  /// that is found, a selection of the surfaces can be done in the visitor
+  ///
+  /// @note If a context is needed for the visit, the vistitor has to provide
+  /// this, e.g. as a private member
+  template <ACTS_CONCEPT(SurfaceVisitor) visitor_t>
   void visitSurfaces(visitor_t&& visitor) const {
-    highestTrackingVolume()->template visitSurfaces<visitor_t>(
+    visitSurfaces(std::forward<visitor_t>(visitor), true);
+  }
+
+  /// @brief Visit all reachable tracking volumes
+  ///
+  /// @tparam visitor_t Type of the callable visitor
+  ///
+  /// @param visitor The callable. Will be called for each reachable volume
+  /// that is found, a selection of the volumes can be done in the visitor
+  ///
+  /// @note If a context is needed for the visit, the vistitor has to provide
+  /// this, e.g. as a private member
+  template <ACTS_CONCEPT(TrackingVolumeVisitor) visitor_t>
+  void visitVolumes(visitor_t&& visitor) const {
+    highestTrackingVolume()->template visitVolumes<visitor_t>(
         std::forward<visitor_t>(visitor));
   }
 
@@ -113,6 +159,10 @@ class TrackingGeometry {
   /// @retval nullptr if no such surface exists
   /// @retval pointer to the found surface otherwise.
   const Surface* findSurface(GeometryIdentifier id) const;
+
+  /// Access to the GeometryIdentifier - Surface association map
+  const std::unordered_map<GeometryIdentifier, const Surface*>&
+  geoIdSurfaceMap() const;
 
  private:
   // the known world

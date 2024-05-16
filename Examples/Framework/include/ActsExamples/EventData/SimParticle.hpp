@@ -47,11 +47,12 @@ struct SecondaryVertexIdGetter {
 };
 }  // namespace detail
 
+using SimBarcode = ::ActsFatras::Barcode;
 using SimParticle = ::ActsFatras::Particle;
 /// Store particles ordered by particle identifier.
+using SimBarcodeContainer = ::boost::container::flat_set<SimBarcode>;
 using SimParticleContainer =
-    ::boost::container::flat_set<::ActsFatras::Particle,
-                                 detail::CompareParticleId>;
+    ::boost::container::flat_set<SimParticle, detail::CompareParticleId>;
 
 /// Iterate over groups of particles belonging to the same primary vertex.
 inline GroupBy<SimParticleContainer::const_iterator,

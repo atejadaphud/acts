@@ -6,20 +6,33 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "Acts/Definitions/Algebra.hpp"
+#include "Acts/Definitions/PdgParticle.hpp"
 #include "Acts/Plugins/Python/Utilities.hpp"
+#include "Acts/Utilities/Logger.hpp"
 #include "ActsExamples/EventData/SimParticle.hpp"
+#include "ActsExamples/Framework/RandomNumbers.hpp"
 #include "ActsExamples/Generators/EventGenerator.hpp"
 #include "ActsExamples/Generators/MultiplicityGenerators.hpp"
 #include "ActsExamples/Generators/ParametricParticleGenerator.hpp"
 #include "ActsExamples/Generators/VertexGenerators.hpp"
-#include "ActsExamples/Propagation/PropagationAlgorithm.hpp"
 
+#include <array>
+#include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
+namespace ActsExamples {
+class IReader;
+}  // namespace ActsExamples
 
 namespace py = pybind11;
 
@@ -37,6 +50,7 @@ namespace Acts::Python {
 
 void addGenerators(Context& ctx) {
   auto mex = ctx.get("examples");
+
   {
     using Config = ActsExamples::EventGenerator::Config;
     auto gen = py::class_<ActsExamples::EventGenerator, ActsExamples::IReader,
@@ -47,8 +61,10 @@ void addGenerators(Context& ctx) {
                    .def_property_readonly(
                        "config", &ActsExamples::EventGenerator::config);
 
-    py::class_<ActsExamples::EventGenerator::VertexGenerator,
-               std::shared_ptr<ActsExamples::EventGenerator::VertexGenerator>>(
+    py::class_<
+        ActsExamples::EventGenerator::PrimaryVertexPositionGenerator,
+        std::shared_ptr<
+            ActsExamples::EventGenerator::PrimaryVertexPositionGenerator>>(
         gen, "VertexGenerator");
     py::class_<
         ActsExamples::EventGenerator::ParticlesGenerator,
@@ -63,10 +79,12 @@ void addGenerators(Context& ctx) {
     using Generator = EventGenerator::Generator;
     py::class_<Generator>(gen, "Generator")
         .def(py::init<>())
-        .def(py::init<std::shared_ptr<EventGenerator::MultiplicityGenerator>,
-                      std::shared_ptr<EventGenerator::VertexGenerator>,
-                      std::shared_ptr<EventGenerator::ParticlesGenerator>>(),
-             py::arg("multiplicity"), py::arg("vertex"), py::arg("particles"))
+        .def(
+            py::init<
+                std::shared_ptr<EventGenerator::MultiplicityGenerator>,
+                std::shared_ptr<EventGenerator::PrimaryVertexPositionGenerator>,
+                std::shared_ptr<EventGenerator::ParticlesGenerator>>(),
+            py::arg("multiplicity"), py::arg("vertex"), py::arg("particles"))
         .def_readwrite("multiplicity", &Generator::multiplicity)
         .def_readwrite("vertex", &Generator::vertex)
         .def_readwrite("particles", &Generator::particles);
@@ -74,37 +92,44 @@ void addGenerators(Context& ctx) {
     py::class_<Config>(gen, "Config")
         .def(py::init<>())
         .def_readwrite("outputParticles", &Config::outputParticles)
+        .def_readwrite("outputVertices", &Config::outputVertices)
         .def_readwrite("generators", &Config::generators)
         .def_readwrite("randomNumbers", &Config::randomNumbers);
   }
 
-  py::class_<ActsExamples::GaussianVertexGenerator,
-             ActsExamples::EventGenerator::VertexGenerator,
-             std::shared_ptr<ActsExamples::GaussianVertexGenerator>>(
+  py::class_<
+      ActsExamples::GaussianPrimaryVertexPositionGenerator,
+      ActsExamples::EventGenerator::PrimaryVertexPositionGenerator,
+      std::shared_ptr<ActsExamples::GaussianPrimaryVertexPositionGenerator>>(
       mex, "GaussianVertexGenerator")
       .def(py::init<>())
       .def(py::init([](const Acts::Vector4& stddev, const Acts::Vector4& mean) {
-             ActsExamples::GaussianVertexGenerator g;
+             ActsExamples::GaussianPrimaryVertexPositionGenerator g;
              g.stddev = stddev;
              g.mean = mean;
              return g;
            }),
            py::arg("stddev"), py::arg("mean"))
-      .def_readwrite("stddev", &ActsExamples::GaussianVertexGenerator::stddev)
-      .def_readwrite("mean", &ActsExamples::GaussianVertexGenerator::mean);
+      .def_readwrite(
+          "stddev",
+          &ActsExamples::GaussianPrimaryVertexPositionGenerator::stddev)
+      .def_readwrite(
+          "mean", &ActsExamples::GaussianPrimaryVertexPositionGenerator::mean);
 
-  py::class_<ActsExamples::FixedVertexGenerator,
-             ActsExamples::EventGenerator::VertexGenerator,
-             std::shared_ptr<ActsExamples::FixedVertexGenerator>>(
+  py::class_<
+      ActsExamples::FixedPrimaryVertexPositionGenerator,
+      ActsExamples::EventGenerator::PrimaryVertexPositionGenerator,
+      std::shared_ptr<ActsExamples::FixedPrimaryVertexPositionGenerator>>(
       mex, "FixedVertexGenerator")
       .def(py::init<>())
       .def(py::init([](const Acts::Vector4& v) {
-             ActsExamples::FixedVertexGenerator g;
+             ActsExamples::FixedPrimaryVertexPositionGenerator g;
              g.fixed = v;
              return g;
            }),
            py::arg("fixed"))
-      .def_readwrite("fixed", &ActsExamples::FixedVertexGenerator::fixed);
+      .def_readwrite("fixed",
+                     &ActsExamples::FixedPrimaryVertexPositionGenerator::fixed);
 
   py::class_<ActsExamples::SimParticle>(mex, "SimParticle");
   py::class_<ActsExamples::SimParticleContainer>(mex, "SimParticleContainer");
@@ -131,6 +156,8 @@ void addGenerators(Context& ctx) {
         .def_readwrite("pdg", &Config::pdg)
         .def_readwrite("randomizeCharge", &Config::randomizeCharge)
         .def_readwrite("numParticles", &Config::numParticles)
+        .def_readwrite("mass", &Config::mass)
+        .def_readwrite("charge", &Config::charge)
         .def_property(
             "p",
             [](Config& cfg) {
@@ -175,7 +202,7 @@ void addGenerators(Context& ctx) {
              std::shared_ptr<ActsExamples::FixedMultiplicityGenerator>>(
       mex, "FixedMultiplicityGenerator")
       .def(py::init<>())
-      .def(py::init([](size_t n) {
+      .def(py::init([](std::size_t n) {
              ActsExamples::FixedMultiplicityGenerator g;
              g.n = n;
              return g;
@@ -196,4 +223,5 @@ void addGenerators(Context& ctx) {
            py::arg("mean"))
       .def_readwrite("mean", &ActsExamples::PoissonMultiplicityGenerator::mean);
 }
+
 }  // namespace Acts::Python

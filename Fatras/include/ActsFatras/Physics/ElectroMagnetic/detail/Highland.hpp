@@ -12,8 +12,7 @@
 
 #include <random>
 
-namespace ActsFatras {
-namespace detail {
+namespace ActsFatras::detail {
 
 /// Generate scattering angles using the Highland/PDG parametrization.
 ///
@@ -33,12 +32,11 @@ struct Highland {
                     Particle &particle) const {
     // compute the planar scattering angle
     const auto theta0 = Acts::computeMultipleScatteringTheta0(
-        slab, particle.pdg(), particle.mass(),
-        particle.charge() / particle.absoluteMomentum(), particle.charge());
+        slab, particle.absolutePdg(), particle.mass(), particle.qOverP(),
+        particle.absoluteCharge());
     // draw from the normal distribution representing the 3d angle distribution
     return std::normal_distribution<double>(0.0, M_SQRT2 * theta0)(generator);
   }
 };
 
-}  // namespace detail
-}  // namespace ActsFatras
+}  // namespace ActsFatras::detail

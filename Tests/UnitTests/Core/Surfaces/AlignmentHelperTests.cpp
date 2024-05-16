@@ -12,10 +12,11 @@
 #include "Acts/Surfaces/detail/AlignmentHelper.hpp"
 #include "Acts/Tests/CommonHelpers/FloatComparisons.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <utility>
 
-namespace Acts {
-namespace Test {
+namespace Acts::Test {
 
 /// Test for rotation matrix and calculation of derivative of rotated x/y/z axis
 /// w.r.t. rotation parameters
@@ -121,5 +122,4 @@ BOOST_AUTO_TEST_CASE(alignment_helper_test) {
   // Check if the derivative for local z axis is as expected
   CHECK_CLOSE_ABS(irotToLocalZAxis, expRotToZAxis, 1e-15);
 }
-}  // namespace Test
-}  // namespace Acts
+}  // namespace Acts::Test

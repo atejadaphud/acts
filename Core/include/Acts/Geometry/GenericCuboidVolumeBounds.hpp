@@ -13,6 +13,7 @@
 #include "Acts/Geometry/VolumeBounds.hpp"
 
 #include <array>
+#include <cstddef>
 #include <ostream>
 #include <vector>
 
@@ -22,7 +23,11 @@ class IVisualization3D;
 
 class GenericCuboidVolumeBounds : public VolumeBounds {
  public:
-  static constexpr size_t eSize = 24;
+  /// @brief  This struct helps to symmetrize with the
+  /// the other volume bounds classes
+  struct BoundValues {
+    static constexpr std::size_t eSize = 24;
+  };
 
   GenericCuboidVolumeBounds() = delete;
 
@@ -40,8 +45,8 @@ class GenericCuboidVolumeBounds : public VolumeBounds {
   /// Constructor from a fixed size array
   ///
   /// @param values The input values
-  GenericCuboidVolumeBounds(const std::array<double, eSize>& values) noexcept(
-      false);
+  GenericCuboidVolumeBounds(
+      const std::array<double, BoundValues::eSize>& values) noexcept(false);
 
   ~GenericCuboidVolumeBounds() override = default;
 
@@ -72,7 +77,7 @@ class GenericCuboidVolumeBounds : public VolumeBounds {
   /// It will throw an exception if the orientation prescription is not adequate
   ///
   /// @return a vector of surfaces bounding this volume
-  OrientedSurfaces orientedSurfaces(
+  std::vector<OrientedSurface> orientedSurfaces(
       const Transform3& transform = Transform3::Identity()) const override;
 
   /// Construct bounding box for this shape
@@ -83,6 +88,14 @@ class GenericCuboidVolumeBounds : public VolumeBounds {
   Volume::BoundingBox boundingBox(const Transform3* trf = nullptr,
                                   const Vector3& envelope = {0, 0, 0},
                                   const Volume* entity = nullptr) const final;
+
+  /// Get the canonical binning values, i.e. the binning values
+  /// for that fully describe the shape's extent
+  ///
+  /// @return vector of canonical binning values
+  std::vector<Acts::BinningValue> canonicalBinning() const override {
+    return {Acts::binX, Acts::binY, Acts::binZ};
+  };
 
   /// @param sl is the output stream to be written into
   std::ostream& toStream(std::ostream& sl) const override;
@@ -98,7 +111,7 @@ class GenericCuboidVolumeBounds : public VolumeBounds {
   std::array<Vector3, 8> m_vertices;
   std::array<Vector3, 6> m_normals;
 
-  /// Private helper method to contruct the Volume bounds
+  /// Private helper method to construct the Volume bounds
   /// to be called by the constructors, from the ordered input vertices
   void construct() noexcept(false);
 };

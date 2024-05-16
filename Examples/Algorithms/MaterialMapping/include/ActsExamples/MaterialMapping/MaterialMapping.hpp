@@ -8,15 +8,29 @@
 
 #pragma once
 
+#include "Acts/Geometry/GeometryContext.hpp"
+#include "Acts/Geometry/GeometryIdentifier.hpp"
+#include "Acts/MagneticField/MagneticFieldContext.hpp"
+#include "Acts/Material/MaterialInteraction.hpp"
 #include "Acts/Material/SurfaceMaterialMapper.hpp"
 #include "Acts/Material/VolumeMaterialMapper.hpp"
 #include "Acts/Utilities/Logger.hpp"
-#include "ActsExamples/Framework/BareAlgorithm.hpp"
+#include "ActsExamples/Framework/DataHandle.hpp"
+#include "ActsExamples/Framework/IAlgorithm.hpp"
+#include "ActsExamples/Framework/ProcessCode.hpp"
 #include "ActsExamples/MaterialMapping/IMaterialWriter.hpp"
 
 #include <climits>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace Acts {
 
@@ -50,7 +64,7 @@ namespace ActsExamples {
 ///
 /// It therefore saves the mapping state/cache as a private member variable
 /// and is designed to be executed in a single threaded mode.
-class MaterialMapping : public ActsExamples::BareAlgorithm {
+class MaterialMapping : public IAlgorithm {
  public:
   /// @class nested Config class
   /// of the MaterialMapping algorithm
@@ -62,7 +76,7 @@ class MaterialMapping : public ActsExamples::BareAlgorithm {
     std::reference_wrapper<const Acts::MagneticFieldContext> magFieldContext;
 
     /// Input collection
-    std::string collection = "material_tracks";
+    std::string inputMaterialTracks = "material_tracks";
 
     /// The material collection to be stored
     std::string mappingMaterialCollection = "mapped_material_tracks";
@@ -101,7 +115,7 @@ class MaterialMapping : public ActsExamples::BareAlgorithm {
   /// Return the parameters to optimised the material map for a given surface
   /// Those parameters are the variance and the number of track for each bin
   ///
-  /// @param surfaceID the ID of the surface of intrest
+  /// @param surfaceID the ID of the surface of interest
   std::vector<std::pair<double, int>> scoringParameters(uint64_t surfaceID);
 
   /// Readonly access to the config
@@ -113,6 +127,12 @@ class MaterialMapping : public ActsExamples::BareAlgorithm {
       m_mappingState;  //!< Material mapping state
   Acts::VolumeMaterialMapper::State
       m_mappingStateVol;  //!< Material mapping state
+                          //
+
+  ReadDataHandle<std::unordered_map<std::size_t, Acts::RecordedMaterialTrack>>
+      m_inputMaterialTracks{this, "InputMaterialTracks"};
+  WriteDataHandle<std::unordered_map<std::size_t, Acts::RecordedMaterialTrack>>
+      m_outputMaterialTracks{this, "OutputMaterialTracks"};
 };
 
 }  // namespace ActsExamples

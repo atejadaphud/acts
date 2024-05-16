@@ -14,12 +14,16 @@
 #include "Acts/Geometry/SurfaceBinningMatcher.hpp"
 #include "Acts/Surfaces/DiscSurface.hpp"
 #include "Acts/Surfaces/RadialBounds.hpp"
+#include "Acts/Surfaces/Surface.hpp"
+#include "Acts/Utilities/BinningType.hpp"
+
+#include <cmath>
+#include <memory>
+#include <vector>
 
 #include <boost/format.hpp>
 
-namespace Acts {
-
-namespace Test {
+namespace Acts::Test {
 
 // Create a test context
 GeometryContext tgContext = GeometryContext();
@@ -72,6 +76,4 @@ BOOST_AUTO_TEST_CASE(PlaneSurfaceMatcher) {
       sbm(tgContext, binPhi, oneSurface.get(), similarPhiSurface.get()));
 }
 
-}  // namespace Test
-
-}  // namespace Acts
+}  // namespace Acts::Test

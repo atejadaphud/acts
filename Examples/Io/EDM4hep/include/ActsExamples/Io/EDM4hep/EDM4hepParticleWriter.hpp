@@ -11,11 +11,10 @@
 #include "ActsExamples/EventData/SimParticle.hpp"
 #include "ActsExamples/Framework/WriterT.hpp"
 
+#include <mutex>
 #include <string>
 
-#include "edm4hep/MCParticleCollection.h"
-#include "podio/EventStore.h"
-#include "podio/ROOTWriter.h"
+#include <podio/ROOTFrameWriter.h>
 
 namespace ActsExamples {
 
@@ -41,7 +40,7 @@ class EDM4hepParticleWriter final : public WriterT<SimParticleContainer> {
   /// @params lvl is the logging level
   EDM4hepParticleWriter(const Config& cfg, Acts::Logging::Level lvl);
 
-  ProcessCode endRun() final;
+  ProcessCode finalize() final;
 
   /// Readonly access to the config
   const Config& config() const { return m_cfg; }
@@ -57,10 +56,9 @@ class EDM4hepParticleWriter final : public WriterT<SimParticleContainer> {
  private:
   Config m_cfg;
 
-  podio::ROOTWriter m_writer;
-  podio::EventStore m_store;
+  std::mutex m_writeMutex;
 
-  edm4hep::MCParticleCollection* m_mcParticleCollection;
+  podio::ROOTFrameWriter m_writer;
 };
 
 }  // namespace ActsExamples

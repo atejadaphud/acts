@@ -10,7 +10,9 @@
 
 #include "Acts/Definitions/Algebra.hpp"
 #include "Acts/Definitions/Common.hpp"
+#include "Acts/Surfaces/Surface.hpp"
 
+#include <array>
 #include <memory>
 #include <tuple>
 
@@ -32,14 +34,14 @@ struct Geant4AlgebraConverter {
   // A potential scalar between Geant4 and ACTS
   ActsScalar scale = 1.;
 
-  /// @brief  Translate a geometry transform: translation only
+  /// @brief Translate a geometry transform: translation only
   ///
   /// @param g4Trans the translation of the Geant4 object
   ///
   /// @return a Acts transform
   Transform3 transform(const G4ThreeVector& g4Trans);
 
-  /// @brief  Translate a geometry transform
+  /// @brief Translate a geometry transform
   ///
   /// @param g4Rot the rotation of the Geant4 object
   /// @param g4Trans the translation of the Geant4 object
@@ -48,12 +50,19 @@ struct Geant4AlgebraConverter {
   Transform3 transform(const G4RotationMatrix& g4Rot,
                        const G4ThreeVector& g4Trans);
 
-  /// @brief  Translate a geometry transform
+  /// @brief Translate a geometry transform
   ///
-  /// @param g4Trf theGeant4 transform object
+  /// @param g4Trf the Geant4 transform object
   ///
   /// @return a Acts transform
   Transform3 transform(const G4Transform3D& g4Trf);
+
+  /// @brief Translate a geometry transform from a G4 physical volume
+  ///
+  /// @param g4PhysVol the Geant4 physical volume
+  ///
+  /// @return a Acts transform
+  Transform3 transform(const G4VPhysicalVolume& g4PhysVol);
 };
 
 class AnnulusBounds;
@@ -62,6 +71,7 @@ class RadialBounds;
 class RectangleBounds;
 class TrapezoidBounds;
 class PlanarBounds;
+class LineBounds;
 
 // The following set of converters convert a Geant4 volume shape
 // to an ACTS surface bounds object, this is for converting the volume
@@ -93,6 +103,13 @@ struct Geant4ShapeConverter {
   std::tuple<std::shared_ptr<RadialBounds>, ActsScalar> radialBounds(
       const G4Tubs& g4Tubs);
 
+  /// @brief Convert to line/straw bounds
+  ///
+  /// @param g4Tubs a Geant4 tube shape
+  ///
+  /// @return an Acts line bounds object and thickness
+  std::shared_ptr<LineBounds> lineBounds(const G4Tubs& g4Tubs);
+
   /// @brief Convert to rectangle bounds
   ///
   /// @param g4Box a Geant4 box shape
@@ -119,9 +136,10 @@ struct Geant4ShapeConverter {
   planarBounds(const G4VSolid& g4Solid);
 };
 
-class Surface;
-
 struct Geant4PhysicalVolumeConverter {
+  /// Optionally allow to foce a type, throws exception if not possible
+  Surface::SurfaceType forcedType = Surface::SurfaceType::Other;
+
   /// @brief Convert a Geant4 phsyical volume to a surface
   ///
   /// @param g4PhysVol the physical volume to be constructed
@@ -136,17 +154,32 @@ struct Geant4PhysicalVolumeConverter {
                                    ActsScalar compressed = 0.);
 };
 
+class Material;
 class HomogeneousSurfaceMaterial;
+class HomogeneousVolumeMaterial;
 
 struct Geant4MaterialConverter {
+  Material material(const G4Material& g4Material, ActsScalar compression = 1);
+
   /// @brief Convert a Geant4 material to a surface material description
   ///
-  /// @param g4Material the geant4 material descrition
+  /// @param g4Material the geant4 material description
   /// @param original the original thickness
   /// @param compressed the compressed thickness
   ///
   std::shared_ptr<HomogeneousSurfaceMaterial> surfaceMaterial(
       const G4Material& g4Material, ActsScalar original, ActsScalar compressed);
+};
+
+class CylinderVolumeBounds;
+
+struct Geant4VolumeConverter {
+  /// @brief Convert to cylinder bounds
+  ///
+  /// @param g4Tubs a Geant4 tube shape
+  ///
+  /// @return an Acts Cylinder bounds object
+  std::shared_ptr<CylinderVolumeBounds> cylinderBounds(const G4Tubs& g4Tubs);
 };
 
 }  // namespace Acts

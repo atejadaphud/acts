@@ -11,10 +11,16 @@
 #include <boost/test/unit_test.hpp>
 
 #include "Acts/Definitions/Algebra.hpp"
+#include "Acts/Surfaces/BoundaryCheck.hpp"
 #include "Acts/Surfaces/CylinderBounds.hpp"
+#include "Acts/Surfaces/SurfaceBounds.hpp"
 #include "Acts/Tests/CommonHelpers/FloatComparisons.hpp"
 
-#include <limits>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <stdexcept>
+#include <vector>
 
 namespace Acts {
 
@@ -33,13 +39,11 @@ BOOST_AUTO_TEST_CASE(CylinderBoundsConstruction) {
                     SurfaceBounds::eCylinder);
   BOOST_CHECK_EQUAL(CylinderBounds(radius, halfz, halfphi, averagePhi).type(),
                     SurfaceBounds::eCylinder);
-  BOOST_CHECK_EQUAL(
-      CylinderBounds(radius, halfz, (double)M_PI, (double)0., minBevelZ).type(),
-      SurfaceBounds::eCylinder);
-  BOOST_CHECK_EQUAL(CylinderBounds(radius, halfz, (double)M_PI, (double)0.,
-                                   minBevelZ, maxBevelZ)
-                        .type(),
+  BOOST_CHECK_EQUAL(CylinderBounds(radius, halfz, M_PI, 0., minBevelZ).type(),
                     SurfaceBounds::eCylinder);
+  BOOST_CHECK_EQUAL(
+      CylinderBounds(radius, halfz, M_PI, 0., minBevelZ, maxBevelZ).type(),
+      SurfaceBounds::eCylinder);
   //
   /// test copy construction;
   CylinderBounds cylinderBounds(radius, halfz);

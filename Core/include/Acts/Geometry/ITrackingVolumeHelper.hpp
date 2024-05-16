@@ -9,6 +9,7 @@
 #pragma once
 
 #include "Acts/Definitions/Algebra.hpp"
+#include "Acts/Geometry/GeometryContext.hpp"
 #include "Acts/Utilities/BinningType.hpp"
 
 #include <memory>
@@ -25,7 +26,6 @@ class IVolumeMaterial;
 using LayerPtr = std::shared_ptr<const Layer>;
 using TrackingVolumePtr = std::shared_ptr<const TrackingVolume>;
 using MutableTrackingVolumePtr = std::shared_ptr<TrackingVolume>;
-using VolumeBoundsPtr = std::shared_ptr<const VolumeBounds>;
 
 using LayerVector = std::vector<LayerPtr>;
 using TrackingVolumeVector = std::vector<TrackingVolumePtr>;
@@ -63,7 +63,8 @@ class ITrackingVolumeHelper {
   virtual MutableTrackingVolumePtr createTrackingVolume(
       const GeometryContext& gctx, const LayerVector& layers,
       std::shared_ptr<const IVolumeMaterial> volumeMaterial,
-      VolumeBoundsPtr volumeBounds, MutableTrackingVolumeVector mtvVector = {},
+      std::shared_ptr<VolumeBounds> volumeBounds,
+      MutableTrackingVolumeVector mtvVector = {},
       const Transform3& transform = Transform3::Identity(),
       const std::string& volumeName = "UndefinedVolume",
       BinningType btype = arbitrary) const = 0;
@@ -97,7 +98,7 @@ class ITrackingVolumeHelper {
   /// @param volumeMaterial material properties for this TrackingVolume
   /// @param loc0Min, loc0Max, loc1Min, loc1Max : local position in space,
   /// this TrackingVolume is restricted to Translation only
-  /// @param materialLayers number of material layers (aequidistant binning)
+  /// @param materialLayers number of material layers (equidistant binning)
   /// @param cylinder type of layers
   /// @param volumeName  volume name to be given
   ///

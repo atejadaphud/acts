@@ -8,15 +8,17 @@
 
 #pragma once
 
+#include "Acts/Definitions/PdgParticle.hpp"
 #include "Acts/Definitions/Units.hpp"
-#include "Acts/Utilities/PdgParticle.hpp"
 #include "ActsExamples/EventData/SimParticle.hpp"
 #include "ActsExamples/Framework/RandomNumbers.hpp"
 #include "ActsExamples/Generators/EventGenerator.hpp"
 
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
+#include <optional>
 
 namespace ActsExamples {
 
@@ -54,13 +56,19 @@ class ParametricParticleGenerator : public EventGenerator::ParticlesGenerator {
     /// Randomize the charge and flip the PDG particle number sign accordingly.
     bool randomizeCharge = false;
     /// Number of particles.
-    size_t numParticles = 1;
+    std::size_t numParticles = 1;
+
+    /// Overrides particle charge.
+    std::optional<double> charge;
+    /// Overrides particle mass.
+    std::optional<double> mass;
   };
 
   ParametricParticleGenerator(const Config& cfg);
 
   /// Generate a single primary vertex with the given number of particles.
-  SimParticleContainer operator()(RandomEngine& rng) override;
+  std::pair<SimVertexContainer, SimParticleContainer> operator()(
+      RandomEngine& rng) override;
 
  private:
   Config m_cfg;

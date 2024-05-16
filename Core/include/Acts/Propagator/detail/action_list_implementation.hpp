@@ -7,27 +7,26 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #pragma once
+
 #include "Acts/Utilities/detail/MPL/type_collector.hpp"
 
 #include <utility>
 
-namespace Acts {
-
-namespace detail {
+namespace Acts::detail {
 
 namespace {
 
-/// The action caller struct, it's called with the
-/// the right result object, which is taken out
-/// from the result tuple
+/// The action caller struct, it's called with the the right result object,
+/// which is taken out from the result tuple
 template <bool has_result = true>
 struct action_caller {
-  template <typename actor, typename result_t, typename propagator_state_t,
-            typename stepper_t, typename... Args>
-  static void action(const actor& act, propagator_state_t& state,
-                     const stepper_t& stepper, result_t& result,
+  template <typename actor_t, typename propagator_state_t, typename stepper_t,
+            typename navigator_t, typename... Args>
+  static void action(const actor_t& act, propagator_state_t& state,
+                     const stepper_t& stepper, const navigator_t& navigator,
                      Args&&... args) {
-    act(state, stepper, result.template get<detail::result_type_t<actor>>(),
+    act(state, stepper, navigator,
+        state.template get<detail::result_type_t<actor_t>>(),
         std::forward<Args>(args)...);
   }
 };
@@ -35,12 +34,12 @@ struct action_caller {
 /// The action caller struct, without result object
 template <>
 struct action_caller<false> {
-  template <typename actor, typename result_t, typename propagator_state_t,
-            typename stepper_t, typename... Args>
-  static void action(const actor& act, propagator_state_t& state,
-                     const stepper_t& stepper, result_t& /*unused*/,
+  template <typename actor_t, typename propagator_state_t, typename stepper_t,
+            typename navigator_t, typename... Args>
+  static void action(const actor_t& act, propagator_state_t& state,
+                     const stepper_t& stepper, const navigator_t& navigator,
                      Args&&... args) {
-    act(state, stepper, std::forward<Args>(args)...);
+    act(state, stepper, navigator, std::forward<Args>(args)...);
   }
 };
 }  // end of anonymous namespace
@@ -54,16 +53,16 @@ struct action_list_impl;
 /// - then broadcasts the action call to the remaining tuple
 template <typename first, typename... others>
 struct action_list_impl<first, others...> {
-  template <typename T, typename result_t, typename propagator_state_t,
-            typename stepper_t, typename... Args>
-  static void action(const T& obs_tuple, propagator_state_t& state,
-                     const stepper_t& stepper, result_t& result,
+  template <typename T, typename propagator_state_t, typename stepper_t,
+            typename navigator_t, typename... Args>
+  static void action(const T& actors_tuple, propagator_state_t& state,
+                     const stepper_t& stepper, const navigator_t& navigator,
                      Args&&... args) {
     constexpr bool has_result = has_result_type_v<first>;
-    const auto& this_action = std::get<first>(obs_tuple);
-    action_caller<has_result>::action(this_action, state, stepper, result,
+    const auto& this_actor = std::get<first>(actors_tuple);
+    action_caller<has_result>::action(this_actor, state, stepper, navigator,
                                       args...);
-    action_list_impl<others...>::action(obs_tuple, state, stepper, result,
+    action_list_impl<others...>::action(actors_tuple, state, stepper, navigator,
                                         args...);
   }
 };
@@ -72,14 +71,14 @@ struct action_list_impl<first, others...> {
 /// - it calls 'action' on the last entry of the tuple
 template <typename last>
 struct action_list_impl<last> {
-  template <typename T, typename result_t, typename propagator_state_t,
-            typename stepper_t, typename... Args>
-  static void action(const T& obs_tuple, propagator_state_t& state,
-                     const stepper_t& stepper, result_t& result,
+  template <typename T, typename propagator_state_t, typename stepper_t,
+            typename navigator_t, typename... Args>
+  static void action(const T& actors_tuple, propagator_state_t& state,
+                     const stepper_t& stepper, const navigator_t& navigator,
                      Args&&... args) {
     constexpr bool has_result = has_result_type_v<last>;
-    const auto& this_action = std::get<last>(obs_tuple);
-    action_caller<has_result>::action(this_action, state, stepper, result,
+    const auto& this_actor = std::get<last>(actors_tuple);
+    action_caller<has_result>::action(this_actor, state, stepper, navigator,
                                       std::forward<Args>(args)...);
   }
 };
@@ -87,12 +86,11 @@ struct action_list_impl<last> {
 /// The empty action list call implementation
 template <>
 struct action_list_impl<> {
-  template <typename T, typename result_t, typename propagator_state_t,
-            typename stepper_t, typename... Args>
-  static void action(const T& /*unused*/, propagator_state_t& /*unused*/,
-                     const stepper_t& /*unused*/, result_t& /*unused*/,
-                     Args&&... /*unused*/) {}
+  template <typename T, typename propagator_state_t, typename stepper_t,
+            typename navigator_t, typename... Args>
+  static void action(const T& /*actors_tuple*/, propagator_state_t& /*state*/,
+                     const stepper_t& /*stepper*/,
+                     const navigator_t& /*navigator*/, Args&&... /*args*/) {}
 };
 
-}  // namespace detail
-}  // namespace Acts
+}  // namespace Acts::detail

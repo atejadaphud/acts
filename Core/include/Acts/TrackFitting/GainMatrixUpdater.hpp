@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "Acts/Definitions/Direction.hpp"
 #include "Acts/EventData/Measurement.hpp"
 #include "Acts/EventData/MeasurementHelpers.hpp"
 #include "Acts/EventData/MultiTrajectory.hpp"
@@ -15,6 +16,10 @@
 #include "Acts/TrackFitting/KalmanFitterError.hpp"
 #include "Acts/Utilities/Logger.hpp"
 #include "Acts/Utilities/Result.hpp"
+
+#include <cassert>
+#include <system_error>
+#include <tuple>
 
 namespace Acts {
 
@@ -41,17 +46,14 @@ class GainMatrixUpdater {
   /// Run the Kalman update step for a single trajectory state.
   ///
   /// @tparam kMeasurementSizeMax
-  /// @param[in] gctx The current geometry context object, e.g. alignment
   /// @param[in,out] trackState The track state
   /// @param[in] direction The navigation direction
   /// @param[in] logger Where to write logging information to
   template <typename traj_t>
-  Result<void> operator()(
-      const GeometryContext& gctx,
-      typename MultiTrajectory<traj_t>::TrackStateProxy trackState,
-      NavigationDirection direction = NavigationDirection::Forward,
-      LoggerWrapper logger = getDummyLogger()) const {
-    (void)gctx;
+  Result<void> operator()(const GeometryContext& /*gctx*/,
+                          typename traj_t::TrackStateProxy trackState,
+                          Direction direction = Direction::Forward,
+                          const Logger& logger = getDummyLogger()) const {
     ACTS_VERBOSE("Invoked GainMatrixUpdater");
 
     // there should be a calibrated measurement
@@ -103,8 +105,8 @@ class GainMatrixUpdater {
 
  private:
   std::tuple<double, std::error_code> visitMeasurement(
-      InternalTrackState trackState, NavigationDirection direction,
-      LoggerWrapper logger) const;
+      InternalTrackState trackState, Direction direction,
+      const Logger& logger) const;
 };
 
 }  // namespace Acts

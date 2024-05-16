@@ -8,9 +8,22 @@
 
 #pragma once
 
-#include "ActsExamples/Framework/BareAlgorithm.hpp"
+#include "Acts/Utilities/Logger.hpp"
+#include "ActsExamples/EventData/ProtoTrack.hpp"
+#include "ActsExamples/EventData/SimHit.hpp"
+#include "ActsExamples/EventData/SimParticle.hpp"
+#include "ActsExamples/Framework/DataHandle.hpp"
+#include "ActsExamples/Framework/IAlgorithm.hpp"
+#include "ActsExamples/Framework/ProcessCode.hpp"
+
+#include <string>
+
+namespace ActsFatras {
+class Barcode;
+}  // namespace ActsFatras
 
 namespace ActsExamples {
+struct AlgorithmContext;
 
 /// Convert true particle tracks into "reconstructed" proto tracks.
 ///
@@ -19,7 +32,7 @@ namespace ActsExamples {
 /// hits. This algorithm should be able to replace any other real track finder
 /// in the reconstruction chain e.g. to validate algorithms further down
 /// the chain.
-class TruthTrackFinder final : public BareAlgorithm {
+class TruthTrackFinder final : public IAlgorithm {
  public:
   struct Config {
     /// The input truth particles that should be used to create proto tracks.
@@ -39,6 +52,14 @@ class TruthTrackFinder final : public BareAlgorithm {
 
  private:
   Config m_cfg;
+
+  ReadDataHandle<SimParticleContainer> m_inputParticles{this, "InputParticles"};
+
+  ReadDataHandle<HitParticlesMap> m_inputMeasurementParticlesMap{
+      this, "InputMeasurementParticlesMap"};
+
+  WriteDataHandle<ProtoTrackContainer> m_outputProtoTracks{this,
+                                                           "OutputProtoTracks"};
 };
 
 }  // namespace ActsExamples

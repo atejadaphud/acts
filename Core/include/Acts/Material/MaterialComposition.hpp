@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace Acts {
@@ -38,9 +40,8 @@ class ElementFraction {
   constexpr ElementFraction(unsigned int e, float f)
       : m_element(static_cast<uint8_t>(e)),
         m_fraction(static_cast<uint8_t>(f * UINT8_MAX)) {
-    assert((0u < e) and ("The atomic number must be positive"));
-    assert((0.0f <= f) and (f <= 1.0f) and
-           "Relative fraction must be in [0,1]");
+    assert((0u < e) && ("The atomic number must be positive"));
+    assert((0.0f <= f) && (f <= 1.0f) && "Relative fraction must be in [0,1]");
   }
   /// Construct from atomic number and integer weight.
   ///
@@ -49,8 +50,8 @@ class ElementFraction {
   constexpr explicit ElementFraction(unsigned int e, unsigned int w)
       : m_element(static_cast<uint8_t>(e)),
         m_fraction(static_cast<uint8_t>(w)) {
-    assert((0u < e) and ("The atomic number must be positive"));
-    assert((w < 256u) and "Integer weight must be in [0,256)");
+    assert((0u < e) && ("The atomic number must be positive"));
+    assert((w < 256u) && "Integer weight must be in [0,256)");
   }
 
   /// Must always be created with valid data.
@@ -75,7 +76,7 @@ class ElementFraction {
   uint8_t m_fraction;
 
   friend constexpr bool operator==(ElementFraction lhs, ElementFraction rhs) {
-    return (lhs.m_fraction == rhs.m_fraction) and
+    return (lhs.m_fraction == rhs.m_fraction) &&
            (lhs.m_element == rhs.m_element);
   }
   /// Sort by fraction for fastest access to the most probable element.
@@ -104,9 +105,10 @@ class MaterialComposition {
       total += element.m_fraction;
     }
     // compute scale factor into the [0, 256) range
-    float scale = float(UINT8_MAX) / float(total);
+    float scale = float{std::numeric_limits<std::uint8_t>::max()} / total;
     for (auto& element : m_elements) {
-      element.m_fraction = static_cast<uint8_t>(element.m_fraction * scale);
+      element.m_fraction =
+          static_cast<std::uint8_t>(element.m_fraction * scale);
     }
   }
 
@@ -123,7 +125,7 @@ class MaterialComposition {
   /// Check if the composed material is valid, i.e. it is not vacuum.
   operator bool() const { return !m_elements.empty(); }
   /// Return the number of elements.
-  size_t size() const { return m_elements.size(); }
+  std::size_t size() const { return m_elements.size(); }
 
  private:
   std::vector<ElementFraction> m_elements;

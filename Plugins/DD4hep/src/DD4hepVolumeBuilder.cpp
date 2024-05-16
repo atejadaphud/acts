@@ -10,13 +10,16 @@
 
 #include "Acts/Definitions/Units.hpp"
 #include "Acts/Geometry/CylinderVolumeBounds.hpp"
-#include "Acts/Material/HomogeneousVolumeMaterial.hpp"
-#include "Acts/Plugins/DD4hep/DD4hepDetectorElement.hpp"
 #include "Acts/Plugins/TGeo/TGeoPrimitivesHelper.hpp"
-#include "Acts/Surfaces/CylinderSurface.hpp"
-#include "Acts/Surfaces/RadialBounds.hpp"
+#include "Acts/Utilities/Logger.hpp"
 
-#include "DD4hep/Detector.h"
+#include <stdexcept>
+#include <utility>
+
+#include <DD4hep/Alignments.h>
+#include <DD4hep/DetElement.h>
+#include <DD4hep/Volumes.h>
+#include <RtypesCore.h>
 
 Acts::DD4hepVolumeBuilder::DD4hepVolumeBuilder(
     const Acts::DD4hepVolumeBuilder::Config& config,
@@ -76,9 +79,8 @@ Acts::DD4hepVolumeBuilder::centralVolumes() const {
                       "constructor!"));
     }
     // Build boundaries
-    CylinderVolumeBounds cvBounds(rMin, rMax, dz);
-    volumes.push_back(TrackingVolume::create(
-        transform, std::make_shared<const CylinderVolumeBounds>(cvBounds)));
+    volumes.push_back(std::make_shared<TrackingVolume>(
+        transform, std::make_shared<CylinderVolumeBounds>(rMin, rMax, dz)));
   }
   return volumes;
 }

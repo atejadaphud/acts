@@ -9,15 +9,15 @@
 #pragma once
 
 #include "Acts/Definitions/Algebra.hpp"
-#include "Acts/Definitions/Common.hpp"
+#include "Acts/Definitions/Tolerance.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <utility>
 #include <vector>
 
-namespace Acts {
-namespace detail {
 /// Helper methods for polyhedron vertices drawing and inside/outside checks.
-namespace VerticesHelper {
+namespace Acts::detail::VerticesHelper {
 
 /// A method that inserts the cartesian extrema points and segments
 /// a curved segment into sub segments
@@ -168,6 +168,4 @@ bool isInsideRectangle(const vertex_t& point, const vertex_t& lowerLeft,
 bool onHyperPlane(const std::vector<Vector3>& vertices,
                   ActsScalar tolerance = s_onSurfaceTolerance);
 
-}  // namespace VerticesHelper
-}  // namespace detail
-}  // namespace Acts
+}  // namespace Acts::detail::VerticesHelper

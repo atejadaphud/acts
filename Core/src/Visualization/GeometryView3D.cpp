@@ -8,12 +8,16 @@
 
 #include "Acts/Visualization/GeometryView3D.hpp"
 
+#include "Acts/Detector/DetectorVolume.hpp"
+#include "Acts/Detector/Portal.hpp"
+#include "Acts/Geometry/BoundarySurfaceT.hpp"
 #include "Acts/Geometry/CylinderVolumeBounds.hpp"
-#include "Acts/Geometry/DetectorVolume.hpp"
+#include "Acts/Geometry/Extent.hpp"
+#include "Acts/Geometry/GeometryIdentifier.hpp"
 #include "Acts/Geometry/Layer.hpp"
 #include "Acts/Geometry/Polyhedron.hpp"
-#include "Acts/Geometry/Portal.hpp"
 #include "Acts/Geometry/TrackingVolume.hpp"
+#include "Acts/Geometry/Volume.hpp"
 #include "Acts/Surfaces/ConeBounds.hpp"
 #include "Acts/Surfaces/ConeSurface.hpp"
 #include "Acts/Surfaces/CylinderBounds.hpp"
@@ -22,12 +26,24 @@
 #include "Acts/Surfaces/RadialBounds.hpp"
 #include "Acts/Surfaces/Surface.hpp"
 #include "Acts/Surfaces/SurfaceArray.hpp"
+#include "Acts/Utilities/BinnedArray.hpp"
+#include "Acts/Utilities/BinningType.hpp"
+#include "Acts/Utilities/IAxis.hpp"
 #include "Acts/Utilities/UnitVectors.hpp"
+#include "Acts/Visualization/IVisualization3D.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <ostream>
+#include <utility>
+#include <vector>
 
 #include <limits.h>
 #include <unistd.h>
 
 namespace {
+
 std::string joinPaths(const std::string& a, const std::string& b) {
   if (b.substr(0, 1) == "/" || a.empty()) {
     return b;
@@ -48,15 +64,23 @@ std::string getWorkingDirectory() {
 
 }  // namespace
 
+namespace Acts::Experimental {
+ViewConfig s_viewSensitive = ViewConfig({0, 180, 240});
+ViewConfig s_viewPassive = ViewConfig({240, 280, 0});
+ViewConfig s_viewVolume = ViewConfig({220, 220, 0});
+ViewConfig s_viewGrid = ViewConfig({220, 0, 0});
+ViewConfig s_viewLine = ViewConfig({0, 0, 220});
+}  // namespace Acts::Experimental
+
 void Acts::GeometryView3D::drawPolyhedron(IVisualization3D& helper,
                                           const Polyhedron& polyhedron,
-                                          const ViewConfig& ViewConfig) {
-  if (ViewConfig.visible) {
-    if (not ViewConfig.triangulate) {
-      helper.faces(polyhedron.vertices, polyhedron.faces, ViewConfig.color);
+                                          const ViewConfig& viewConfig) {
+  if (viewConfig.visible) {
+    if (!viewConfig.triangulate) {
+      helper.faces(polyhedron.vertices, polyhedron.faces, viewConfig.color);
     } else {
       helper.faces(polyhedron.vertices, polyhedron.triangularMesh,
-                   ViewConfig.color);
+                   viewConfig.color);
     }
   }
 }
@@ -65,13 +89,13 @@ void Acts::GeometryView3D::drawSurface(IVisualization3D& helper,
                                        const Surface& surface,
                                        const GeometryContext& gctx,
                                        const Transform3& transform,
-                                       const ViewConfig& ViewConfig) {
+                                       const ViewConfig& viewConfig) {
   Polyhedron surfaceHedron =
-      surface.polyhedronRepresentation(gctx, ViewConfig.nSegments);
-  if (not transform.isApprox(Transform3::Identity())) {
+      surface.polyhedronRepresentation(gctx, viewConfig.nSegments);
+  if (!transform.isApprox(Transform3::Identity())) {
     surfaceHedron.move(transform);
   }
-  drawPolyhedron(helper, surfaceHedron, ViewConfig);
+  drawPolyhedron(helper, surfaceHedron, viewConfig);
 }
 
 void Acts::GeometryView3D::drawSurfaceArray(
@@ -92,7 +116,7 @@ void Acts::GeometryView3D::drawSurfaceArray(
     arrayExtent.extend(sfExtent);
   }
 
-  if (not sensitiveConfig.outputName.empty()) {
+  if (!sensitiveConfig.outputName.empty()) {
     helper.write(joinPaths(outputDir, sensitiveConfig.outputName));
     helper.clear();
   }
@@ -101,9 +125,9 @@ void Acts::GeometryView3D::drawSurfaceArray(
   // Draw the grid itself
   auto binning = surfaceArray.binningValues();
   auto axes = surfaceArray.getAxes();
-  if (not binning.empty() and binning.size() == 2 and axes.size() == 2) {
+  if (!binning.empty() && binning.size() == 2 && axes.size() == 2) {
     // Cylinder surface array
-    if (binning[0] == binPhi and binning[1] == binZ) {
+    if (binning[0] == binPhi && binning[1] == binZ) {
       double R = arrayExtent.medium(binR) + gridConfig.offset;
       auto phiValues = axes[0]->getBinEdges();
       auto zValues = axes[1]->getBinEdges();
@@ -122,12 +146,12 @@ void Acts::GeometryView3D::drawSurfaceArray(
       auto cvbOrientedSurfaces = cvb.orientedSurfaces();
       for (auto z : zValues) {
         for (const auto& cvbSf : cvbOrientedSurfaces) {
-          drawSurface(helper, *cvbSf.first, gctx,
+          drawSurface(helper, *cvbSf.surface, gctx,
                       Translation3(0., 0., z) * transform, gridRadConfig);
         }
       }
 
-    } else if (binning[0] == binR and binning[1] == binPhi) {
+    } else if (binning[0] == binR && binning[1] == binPhi) {
       double z = arrayExtent.medium(binZ) + gridConfig.offset;
       auto rValues = axes[0]->getBinEdges();
       auto phiValues = axes[1]->getBinEdges();
@@ -138,7 +162,7 @@ void Acts::GeometryView3D::drawSurfaceArray(
                                  0.5 * thickness);
         auto cvbOrientedSurfaces = cvb.orientedSurfaces();
         for (const auto& cvbSf : cvbOrientedSurfaces) {
-          drawSurface(helper, *cvbSf.first, gctx,
+          drawSurface(helper, *cvbSf.surface, gctx,
                       Translation3(0., 0., z) * transform, gridRadConfig);
         }
       }
@@ -154,21 +178,20 @@ void Acts::GeometryView3D::drawSurfaceArray(
     }
   }
 
-  if (not gridConfig.outputName.empty()) {
+  if (!gridConfig.outputName.empty()) {
     helper.write(joinPaths(outputDir, gridConfig.outputName));
     helper.clear();
   }
 }
 
 void Acts::GeometryView3D::drawVolume(IVisualization3D& helper,
-                                      const AbstractVolume& volume,
+                                      const Volume& volume,
                                       const GeometryContext& gctx,
                                       const Transform3& transform,
                                       const ViewConfig& viewConfig) {
-  auto bSurfaces = volume.boundarySurfaces();
+  auto bSurfaces = volume.volumeBounds().orientedSurfaces(volume.transform());
   for (const auto& bs : bSurfaces) {
-    drawSurface(helper, bs->surfaceRepresentation(), gctx, transform,
-                viewConfig);
+    drawSurface(helper, *bs.surface, gctx, transform, viewConfig);
   }
 }
 
@@ -181,7 +204,7 @@ void Acts::GeometryView3D::drawPortal(IVisualization3D& helper,
   // color the portal based on if it contains two links(green)
   // or one link(red)
   auto surface = &(portal.surface());
-  auto links = &(portal.detectorVolumeUpdators());
+  auto links = &(portal.detectorVolumeUpdaters());
   if (links->size() == 2) {
     drawSurface(helper, *surface, gctx, transform, connected);
   } else {
@@ -192,25 +215,22 @@ void Acts::GeometryView3D::drawPortal(IVisualization3D& helper,
 void Acts::GeometryView3D::drawDetectorVolume(
     IVisualization3D& helper, const Experimental::DetectorVolume& volume,
     const GeometryContext& gctx, const Transform3& transform,
-    const ViewConfig& connected, const ViewConfig& unconnected) {
+    const ViewConfig& connected, const ViewConfig& unconnected,
+    const ViewConfig& viewConfig) {
+  // draw the surfaces of the mother volume
+  for (auto surface : volume.surfaces()) {
+    drawSurface(helper, *surface, gctx, transform, viewConfig);
+  }
+
   // draw the envelope first
-  auto portals = volume.portals();
-  for (auto portal : portals) {
+  for (auto portal : volume.portals()) {
     drawPortal(helper, *portal, gctx, transform, connected, unconnected);
   }
-  // recurse if there are subvolumes, otherwise draw the portals
-  auto subvolumes = volume.volumes();
-  for (auto subvolume : subvolumes) {
-    if (!subvolume->volumes().empty()) {
-      drawDetectorVolume(helper, *subvolume, gctx, transform, connected,
-                         unconnected);
-    } else {
-      auto sub_portals = subvolume->portals();
-      for (auto sub_portal : sub_portals) {
-        drawPortal(helper, *sub_portal, gctx, transform, connected,
-                   unconnected);
-      }
-    }
+
+  // recurse if there are subvolumes
+  for (auto subvolume : volume.volumes()) {
+    drawDetectorVolume(helper, *subvolume, gctx, transform, connected,
+                       unconnected, viewConfig);
   }
 }
 
@@ -231,13 +251,13 @@ void Acts::GeometryView3D::drawLayer(
       drawSurface(helper, layerSurface, gctx, Transform3::Identity(),
                   layerConfig);
     }
-    if (not layerConfig.outputName.empty()) {
+    if (!layerConfig.outputName.empty()) {
       helper.write(joinPaths(outputDir, layerConfig.outputName));
       helper.clear();
     }
   }
 
-  if (sensitiveConfig.visible or gridConfig.visible) {
+  if (sensitiveConfig.visible || gridConfig.visible) {
     auto surfaceArray = layer.surfaceArray();
     if (surfaceArray != nullptr) {
       drawSurfaceArray(helper, *surfaceArray, gctx, Transform3::Identity(),
@@ -293,7 +313,7 @@ void Acts::GeometryView3D::drawTrackingVolume(
         ids.push_back(current->motherVolume()->geometryId().volume());
       }
 
-      for (size_t i = ids.size() - 1; i < ids.size(); --i) {
+      for (std::size_t i = ids.size() - 1; i < ids.size(); --i) {
         vs << "_v" << ids[i];
       }
       vname = vs.str();
@@ -314,7 +334,7 @@ void Acts::GeometryView3D::drawTrackingVolume(
 
   if (tVolume.confinedLayers() != nullptr) {
     const auto& layers = tVolume.confinedLayers()->arrayObjects();
-    size_t il = 0;
+    std::size_t il = 0;
     for (const auto& tl : layers) {
       if (writeIt) {
         lConfig.outputName =
@@ -400,7 +420,7 @@ void Acts::GeometryView3D::drawSegmentBase(IVisualization3D& helper,
       drawSurface(helper, *plate, GeometryContext(), Transform3::Identity(),
                   viewConfig);
     }
-    if (arrows < 0 or arrows == 2) {
+    if (arrows < 0 || arrows == 2) {
       auto astransform = Transform3::Identity();
       astransform.prerotate(lrotation);
       astransform.pretranslate(start);

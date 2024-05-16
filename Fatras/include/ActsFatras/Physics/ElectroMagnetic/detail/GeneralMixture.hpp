@@ -8,13 +8,12 @@
 
 #pragma once
 
+#include "Acts/Definitions/PdgParticle.hpp"
 #include "Acts/Material/Interactions.hpp"
-#include "Acts/Utilities/PdgParticle.hpp"
 
 #include <random>
 
-namespace ActsFatras {
-namespace detail {
+namespace ActsFatras::detail {
 
 /// Generate scattering angles using a general mixture model.
 ///
@@ -42,7 +41,7 @@ struct GeneralMixture {
                     Particle &particle) const {
     double theta = 0.0;
 
-    if (std::abs(particle.pdg()) != Acts::PdgParticle::eElectron) {
+    if (particle.absolutePdg() != Acts::PdgParticle::eElectron) {
       //----------------------------------------------------------------------------
       // see Mixture models of multiple scattering: computation and simulation.
       // -
@@ -83,8 +82,8 @@ struct GeneralMixture {
       // for electrons we fall back to the Highland (extension)
       // return projection factor times sigma times gauss random
       const auto theta0 = Acts::computeMultipleScatteringTheta0(
-          slab, particle.pdg(), particle.mass(),
-          particle.charge() / particle.absoluteMomentum(), particle.charge());
+          slab, particle.absolutePdg(), particle.mass(), particle.qOverP(),
+          particle.absoluteCharge());
       theta = std::normal_distribution<double>(0.0, theta0)(generator);
     }
     // scale from planar to 3d angle
@@ -201,5 +200,4 @@ struct GeneralMixture {
   }
 };
 
-}  // namespace detail
-}  // namespace ActsFatras
+}  // namespace ActsFatras::detail

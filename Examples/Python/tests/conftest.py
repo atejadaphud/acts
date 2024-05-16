@@ -1,3 +1,4 @@
+import multiprocessing
 from pathlib import Path
 import sys
 import os
@@ -17,13 +18,12 @@ sys.path += [
 
 import helpers
 import helpers.hash_root
-from common import getOpenDataDetectorDirectory
-from acts.examples.odd import getOpenDataDetector
 
 import pytest
 
 import acts
 import acts.examples
+from acts.examples.odd import getOpenDataDetector
 
 try:
     import ROOT
@@ -87,7 +87,7 @@ def root_file_exp_hashes():
 
 
 @pytest.fixture(name="assert_root_hash")
-def assert_root_hash(request, root_file_exp_hashes, record_property):
+def assert_root_hash(request, root_file_exp_hashes):
     if not helpers.doHashChecks:
 
         def fn(*args, **kwargs):
@@ -220,7 +220,7 @@ def basic_prop_seq(rng):
 
 
 @pytest.fixture
-def trk_geo(request):
+def trk_geo():
     detector, geo, contextDecorators = acts.examples.GenericDetector.create()
     yield geo
 
@@ -238,12 +238,7 @@ DetectorConfig = namedtuple(
 )
 
 
-@pytest.fixture(
-    params=[
-        "generic",
-        "odd",
-    ]
-)
+@pytest.fixture(params=["generic", pytest.param("odd", marks=pytest.mark.odd)])
 def detector_config(request):
     srcdir = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -271,9 +266,7 @@ def detector_config(request):
             srcdir / "thirdparty/OpenDataDetector/data/odd-material-maps.root",
             level=acts.logging.INFO,
         )
-        detector, trackingGeometry, decorators = getOpenDataDetector(
-            getOpenDataDetectorDirectory(), matDeco
-        )
+        detector, trackingGeometry, decorators = getOpenDataDetector(matDeco)
         return DetectorConfig(
             detector,
             trackingGeometry,
@@ -313,6 +306,7 @@ def ptcl_gun(rng):
                 )
             ],
             outputParticles="particles_input",
+            outputVertices="vertices_input",
             randomNumbers=rng,
         )
 
@@ -355,7 +349,7 @@ def fatras(ptcl_gun, trk_geo, rng):
                     / "Examples/Algorithms/Digitization/share/default-smearing-config-generic.json"
                 )
             ),
-            trackingGeometry=trk_geo,
+            surfaceByIdentifier=trk_geo.geoIdSurfaceMap(),
             randomNumbers=rng,
             inputSimHits=simAlg.config.outputSimHits,
         )
@@ -368,34 +362,35 @@ def fatras(ptcl_gun, trk_geo, rng):
     return _factory
 
 
+def _do_material_recording(d: Path):
+    from material_recording import runMaterialRecording
+
+    detector, trackingGeometry, decorators = getOpenDataDetector()
+
+    detectorConstructionFactory = (
+        acts.examples.geant4.dd4hep.DDG4DetectorConstructionFactory(detector)
+    )
+
+    s = acts.examples.Sequencer(events=2, numThreads=1)
+
+    runMaterialRecording(detectorConstructionFactory, str(d), tracksPerEvent=100, s=s)
+    s.run()
+
+
 @pytest.fixture(scope="session")
 def material_recording_session():
     if not helpers.geant4Enabled:
         pytest.skip("Geantino recording requested, but Geant4 is not set up")
 
     if not helpers.dd4hepEnabled:
-        pytest.skip("DD4hep recording requested, but Geant4 is not set up")
-
-    from material_recording import runMaterialRecording
-
-    detector, trackingGeometry, decorators = getOpenDataDetector(
-        getOpenDataDetectorDirectory()
-    )
-
-    dd4hepG4Construction = acts.examples.geant4.dd4hep.DDG4DetectorConstruction(
-        detector
-    )
+        pytest.skip("DD4hep recording requested, but DD4hep is not set up")
 
     with tempfile.TemporaryDirectory() as d:
-
-        s = acts.examples.Sequencer(events=2, numThreads=1)
-
-        runMaterialRecording(dd4hepG4Construction, str(d), tracksPerEvent=100, s=s)
-        s.run()
-
-        del s
-        del detector
-        del dd4hepG4Construction
+        p = multiprocessing.Process(target=_do_material_recording, args=(d,))
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise RuntimeError("Failure to exeecute material recording")
 
         yield Path(d)
 
@@ -405,11 +400,3 @@ def material_recording(material_recording_session: Path, tmp_path: Path):
     target = tmp_path / material_recording_session.name
     shutil.copytree(material_recording_session, target)
     yield target
-
-
-@pytest.fixture(autouse=True)
-def fpe_monitoring():
-    print("Enabling FPE monitoring")
-    with acts.FpeMonitor():
-        yield
-    print("Disabling FPE monitoring")

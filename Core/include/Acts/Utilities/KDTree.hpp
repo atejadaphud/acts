@@ -13,6 +13,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace Acts {
 /// @brief A general k-d tree with fast range search.
@@ -21,7 +25,7 @@ namespace Acts {
 /// scalar type, content type, index type, vector type, and leaf size. This
 /// class is purposefully generalized to support a wide range of use cases.
 ///
-/// A k-d tree is, in essence, a k-dimensional binary search tree. Each interal
+/// A k-d tree is, in essence, a k-dimensional binary search tree. Each internal
 /// node splits the content of the tree in half, with the pivot point being an
 /// orthogonal hyperplane in one of the k dimensions. This allows us to
 /// efficiently look up points within certain k-dimensional ranges.
@@ -45,7 +49,7 @@ class KDTree {
   using value_t = Type;
 
   /// @brief The type describing a multi-dimensional orthogonal range.
-  using range_t = RangeXD<Dims, Scalar, Vector>;
+  using range_t = RangeXD<Dims, Scalar>;
 
   /// @brief The type of coordinates for points.
   using coordinate_t = Vector<Scalar, Dims>;
@@ -299,7 +303,7 @@ class KDTree {
     range_t r;
 
     for (std::size_t j = 0; j < Dims; ++j) {
-      r[j] = {min_v[j], nextRepresentable(max_v[j])};
+      r[j] = Range1D<Scalar>{min_v[j], nextRepresentable(max_v[j])};
     }
 
     return r;
@@ -345,7 +349,7 @@ class KDTree {
         // elements is. If it is sufficiently small, we use the median.
         // Otherwise we use the mean.
         if (size() > max_exact_median) {
-          // In this case, we have a lot of elemenents, and sorting the range to
+          // In this case, we have a lot of elements, and sorting the range to
           // find the true median might be too expensive. Therefore, we will
           // just use the middle value between the minimum and maximum. This is
           // not nearly as accurate as using the median, but it's a nice cheat.

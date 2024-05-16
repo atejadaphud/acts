@@ -8,17 +8,10 @@
 
 #include "Acts/Utilities/Logger.hpp"
 
-#include <cassert>
+#include <algorithm>
+#include <cstdlib>
 
 namespace Acts {
-
-LoggerWrapper::LoggerWrapper(const Logger& logger) : m_logger(&logger) {}
-
-void LoggerWrapper::log(const Logging::Level& lvl,
-                        const std::string& input) const {
-  assert(m_logger != nullptr);
-  return m_logger->log(lvl, input);
-}
 
 namespace Logging {
 
@@ -73,7 +66,7 @@ void setFailureThreshold(Level /*lvl*/) {
       "Compile-time log failure threshold defined (ACTS_LOG_FAILURE_THRESHOLD "
       "is set or ACTS_ENABLE_LOG_FAILURE_THRESHOLD is OFF), unable to "
       "override. See "
-      "https://acts.readthedocs.io/en/latest/core/"
+      "https://acts.readthedocs.io/en/latest/core/misc/"
       "logging.html#logging-thresholds"};
 }
 

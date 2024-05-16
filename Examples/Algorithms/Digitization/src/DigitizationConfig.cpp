@@ -9,14 +9,8 @@
 #include "ActsExamples/Digitization/DigitizationConfig.hpp"
 
 #include "Acts/Definitions/TrackParametrization.hpp"
-#include "Acts/Definitions/Units.hpp"
-#include "Acts/Utilities/Logger.hpp"
-#include "ActsExamples/Digitization/DigitizationAlgorithm.hpp"
-#include "ActsExamples/Digitization/Smearers.hpp"
+#include "Acts/Geometry/GeometryIdentifier.hpp"
 #include "ActsExamples/Digitization/SmearingConfig.hpp"
-
-#include <numeric>
-#include <string>
 
 namespace {
 
@@ -50,7 +44,7 @@ ActsExamples::DigitizationConfig::getBoundIndices() const {
       std::pair<Acts::GeometryIdentifier, std::vector<Acts::BoundIndices>>>
       bIndexInput;
 
-  for (size_t ibi = 0; ibi < digitizationConfigs.size(); ++ibi) {
+  for (std::size_t ibi = 0; ibi < digitizationConfigs.size(); ++ibi) {
     Acts::GeometryIdentifier geoID = digitizationConfigs.idAt(ibi);
     const auto dCfg = digitizationConfigs.valueAt(ibi);
     std::vector<Acts::BoundIndices> boundIndices;
@@ -64,4 +58,25 @@ ActsExamples::DigitizationConfig::getBoundIndices() const {
     bIndexInput.push_back({geoID, boundIndices});
   }
   return bIndexInput;
+}
+
+std::vector<Acts::ActsScalar> ActsExamples::GeometricConfig::variances(
+    const std::array<std::size_t, 2u>& csizes,
+    const std::array<std::size_t, 2u>& cmins) const {
+  std::vector<Acts::ActsScalar> rVariances;
+  for (const auto& bIndex : indices) {
+    Acts::ActsScalar var = 0.;
+    if (varianceMap.find(bIndex) != varianceMap.end()) {
+      // Try to find the variance for this cluster size
+      std::size_t lsize =
+          std::min(csizes[bIndex], varianceMap.at(bIndex).size());
+      var = varianceMap.at(bIndex).at(lsize - 1);
+    } else {
+      // Pitch size ofer / sqrt(12) as error instead
+      std::size_t ictr = cmins[bIndex] + csizes[bIndex] / 2;
+      var = std::pow(segmentation.binningData()[bIndex].width(ictr), 2) / 12.0;
+    }
+    rVariances.push_back(var);
+  }
+  return rVariances;
 }

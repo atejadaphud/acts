@@ -13,7 +13,6 @@
 #include "Acts/Definitions/Algebra.hpp"
 #include "Acts/Utilities/BinningType.hpp"
 #include "Acts/Utilities/Enumerate.hpp"
-#include "Acts/Utilities/Range1D.hpp"
 #include "Acts/Utilities/RangeXD.hpp"
 
 #include <array>
@@ -25,14 +24,14 @@
 namespace Acts {
 
 using Envelope = std::array<ActsScalar, 2>;
-using ExtentEnvelope = std::array<std::array<ActsScalar, 2>, binValues>;
+using ExtentEnvelope = std::array<Envelope, binValues>;
 
-constexpr Envelope zeroEnvelope = {0., 0};
+constexpr Envelope zeroEnvelope = {0, 0};
 constexpr ExtentEnvelope zeroEnvelopes = {
     zeroEnvelope, zeroEnvelope, zeroEnvelope, zeroEnvelope,
     zeroEnvelope, zeroEnvelope, zeroEnvelope, zeroEnvelope};
 
-/// A class representing the geometric extent of an object in its possbile
+/// A class representing the geometric extent of an object in its possible
 /// dimensions, these can be all dimensions that are described as BinningValues
 ///
 /// The extent object can have an optional envelope in all of those values
@@ -47,7 +46,7 @@ class Extent {
   bool operator==(const Extent& e) const;
 
   /// Define a comparison operator
-  bool operator!=(const Extent& e) const { return (not operator==(e)); }
+  bool operator!=(const Extent& e) const { return (!operator==(e)); }
 
   /// Extend with a position vertex
   ///
@@ -122,17 +121,17 @@ class Extent {
   /// @param bValue is the binning value to be returned
   ///
   /// @return a one dimensional arrange
-  Range1D<ActsScalar>& range(BinningValue bValue);
+  auto range(BinningValue bValue) { return m_range[bValue]; }
 
   /// Return the individual 1-dimensional range
   ///
   /// @param bValue is the binning value to be returned
   ///
   /// @return a one dimensional arrange
-  const Range1D<ActsScalar>& range(BinningValue bValue) const;
+  Range1D<ActsScalar> range(BinningValue bValue) const;
 
   /// Return the N-dimension range
-  const RangeXD<binValues, ActsScalar> range() const;
+  const RangeXD<binValues, ActsScalar>& range() const;
 
   /// Return an D-dimensional sub range according to the
   /// the given @param binValues
@@ -154,7 +153,7 @@ class Extent {
 
   /// Return the histogram store
   ///
-  /// The histogram stroe can be used for automated binning detection
+  /// The histogram store can be used for automated binning detection
   const std::array<std::vector<ActsScalar>, binValues>& valueHistograms() const;
 
   /// Access the minimum parameter
@@ -167,11 +166,18 @@ class Extent {
   /// @param bValue the binning identification
   ActsScalar max(BinningValue bValue) const { return m_range[bValue].max(); }
 
-  /// Access the maximum parameter
+  /// Access the midpoint
   ///
   /// @param bValue the binning identification
   ActsScalar medium(BinningValue bValue) const {
     return 0.5 * (m_range[bValue].min() + m_range[bValue].max());
+  }
+
+  /// Access the parameter interval (i.e. the range span)
+  ///
+  /// @param bValue the binning identification
+  ActsScalar interval(BinningValue bValue) const {
+    return m_range[bValue].size();
   }
 
   /// Contains check
@@ -182,6 +188,13 @@ class Extent {
   ///
   /// @return true if the rhs is contained
   bool contains(const Extent& rhs, BinningValue bValue = binValues) const;
+
+  /// Contains check for a single point
+  ///
+  /// @param vtx the point that is check if it is contained
+  ///
+  /// @return true if the rhs is contained
+  bool contains(const Vector3& vtx) const;
 
   /// Intersection checks
   ///
@@ -207,22 +220,17 @@ class Extent {
   std::bitset<binValues> m_constrains{0};
   /// The actual range store
   RangeXD<binValues, ActsScalar> m_range;
-  /// A potential envenelope
+  /// A potential envelope
   ExtentEnvelope m_envelope = zeroEnvelopes;
   /// (Optional) Value histograms for bin detection
   std::array<std::vector<ActsScalar>, binValues> m_valueHistograms;
 };
 
-inline Range1D<ActsScalar>& Acts::Extent::range(BinningValue bValue) {
+inline Range1D<ActsScalar> Acts::Extent::range(BinningValue bValue) const {
   return m_range[bValue];
 }
 
-inline const Range1D<ActsScalar>& Acts::Extent::range(
-    BinningValue bValue) const {
-  return m_range[bValue];
-}
-
-inline const RangeXD<binValues, ActsScalar> Extent::range() const {
+inline const RangeXD<binValues, ActsScalar>& Extent::range() const {
   return m_range;
 }
 

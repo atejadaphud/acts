@@ -9,7 +9,7 @@
 #include "Acts/Geometry/CylinderVolumeBuilder.hpp"
 
 #include "Acts/Definitions/Algebra.hpp"
-#include "Acts/Geometry/AbstractVolume.hpp"
+#include "Acts/Definitions/Common.hpp"
 #include "Acts/Geometry/BoundarySurfaceFace.hpp"
 #include "Acts/Geometry/CylinderLayer.hpp"
 #include "Acts/Geometry/CylinderVolumeBounds.hpp"
@@ -25,9 +25,9 @@
 #include "Acts/Surfaces/Surface.hpp"
 #include "Acts/Surfaces/SurfaceBounds.hpp"
 #include "Acts/Utilities/BinningType.hpp"
+#include "Acts/Utilities/Helpers.hpp"
 
 #include <algorithm>
-#include <iosfwd>
 #include <iterator>
 #include <vector>
 
@@ -58,7 +58,7 @@ void Acts::CylinderVolumeBuilder::setLogger(
 std::shared_ptr<Acts::TrackingVolume>
 Acts::CylinderVolumeBuilder::trackingVolume(
     const GeometryContext& gctx, TrackingVolumePtr existingVolume,
-    VolumeBoundsPtr externalBounds) const {
+    std::shared_ptr<const VolumeBounds> externalBounds) const {
   ACTS_DEBUG("Configured to build volume : " << m_cfg.volumeName);
   if (existingVolume) {
     ACTS_DEBUG("- will wrap/enclose : " << existingVolume->volumeName());
@@ -144,7 +144,7 @@ Acts::CylinderVolumeBuilder::trackingVolume(
   // present)
   // --------------------------------------------------------------------------
   //
-  // possbile configurations are (so far only synchronised):
+  // possible configurations are (so far only synchronised):
   //
   // | Negative Endcap | Barrel | Positive Endcap | -  all layers present
   //                   | Barrel |                   -  barrel present
@@ -160,6 +160,15 @@ Acts::CylinderVolumeBuilder::trackingVolume(
   wConfig.nVolumeConfig = analyzeContent(gctx, negativeLayers, {});  // TODO
   wConfig.cVolumeConfig = analyzeContent(gctx, centralLayers, centralVolumes);
   wConfig.pVolumeConfig = analyzeContent(gctx, positiveLayers, {});  // TODO
+
+  bool hasLayers = wConfig.nVolumeConfig.present ||
+                   wConfig.cVolumeConfig.present ||
+                   wConfig.pVolumeConfig.present;
+
+  if (!hasLayers) {
+    ACTS_INFO("No layers present, returning nullptr");
+    return nullptr;
+  }
 
   std::string layerConfiguration = "|";
   if (wConfig.nVolumeConfig) {
@@ -249,7 +258,7 @@ Acts::CylinderVolumeBuilder::trackingVolume(
       [&](VolumeConfig& centralConfig, VolumeConfig& endcapConfig,
           const std::string& endcapName) -> MutableTrackingVolumePtr {
     // No config - no volume
-    if (not endcapConfig) {
+    if (!endcapConfig) {
       return nullptr;
     }
     // Check for ring layout
@@ -305,12 +314,12 @@ Acts::CylinderVolumeBuilder::trackingVolume(
         return ss.str();
       }());
       // Result of the parsing loop
-      if (innerRadii.size() == outerRadii.size() and not innerRadii.empty()) {
+      if (innerRadii.size() == outerRadii.size() && !innerRadii.empty()) {
         bool consistent = true;
         // The inter volume radii
         ACTS_VERBOSE("Checking ring radius consistency");
         std::vector<double> interRadii = {};
-        for (int ir = 1; ir < int(innerRadii.size()); ++ir) {
+        for (std::size_t ir = 1; ir < innerRadii.size(); ++ir) {
           // Check whether inner/outer radii are consistent
           ACTS_VERBOSE(
               "or #" << ir - 1 << " < ir #" << ir << ": " << outerRadii[ir - 1]
@@ -350,7 +359,7 @@ Acts::CylinderVolumeBuilder::trackingVolume(
             auto ringVolume = std::find_if(
                 volumeRminRmax.begin(), volumeRminRmax.end(),
                 [&](const auto& reference) {
-                  return (test > reference.first and test < reference.second);
+                  return (test > reference.first && test < reference.second);
                 });
             if (ringVolume != volumeRminRmax.end()) {
               unsigned int ringBin =
@@ -414,7 +423,7 @@ Acts::CylinderVolumeBuilder::trackingVolume(
       volumesContainer.push_back(nEndcap);
       volume = nEndcap;
       // Set the inner or outer material
-      if (not m_cfg.buildToRadiusZero) {
+      if (!m_cfg.buildToRadiusZero) {
         volume->assignBoundaryMaterial(m_cfg.boundaryMaterial[0],
                                        Acts::tubeInnerCover);
       }
@@ -430,7 +439,7 @@ Acts::CylinderVolumeBuilder::trackingVolume(
       volumesContainer.push_back(barrel);
       volume = barrel;
       // Set the inner or outer material
-      if (not m_cfg.buildToRadiusZero) {
+      if (!m_cfg.buildToRadiusZero) {
         volume->assignBoundaryMaterial(m_cfg.boundaryMaterial[0],
                                        Acts::tubeInnerCover);
       }
@@ -445,7 +454,7 @@ Acts::CylinderVolumeBuilder::trackingVolume(
       volumesContainer.push_back(pEndcap);
       volume = pEndcap;
       // Set the inner or outer material
-      if (not m_cfg.buildToRadiusZero) {
+      if (!m_cfg.buildToRadiusZero) {
         volume->assignBoundaryMaterial(m_cfg.boundaryMaterial[0],
                                        Acts::tubeInnerCover);
       }

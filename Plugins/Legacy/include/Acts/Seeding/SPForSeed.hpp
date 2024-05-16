@@ -28,8 +28,7 @@
 //    if(de->isBarrel()) {m_covz = 8.*f22; m_covr = .1;}
 //    else               {m_covr = 8.*f22; m_covz = .1;}
 
-namespace Acts {
-namespace Legacy {
+namespace Acts::Legacy {
 
 template <typename SpacePoint>
 class SPForSeed {
@@ -148,7 +147,7 @@ inline void SPForSeed<SpacePoint>::set(SpacePoint* const& sp, const float* r) {
   m_x = r[0];
   m_y = r[1];
   m_z = r[2];
-  m_r = sqrt(m_x * m_x + m_y * m_y);
+  m_r = std::hypot(m_x, m_y);
   m_surface = sp->surface;
   m_q = 100000.;
 
@@ -188,7 +187,7 @@ inline void SPForSeed<SpacePoint>::set(SpacePoint* const& sp, const float* r,
   m_x = r[0];
   m_y = r[1];
   m_z = r[2];
-  m_r = sqrt(m_x * m_x + m_y * m_y);
+  m_r = std::hypot(m_x, m_y);
   m_q = 100000.;
   if (!sp->clusterList().second) {
     m_covr = sp->covr * 9. * sc[0];
@@ -247,5 +246,4 @@ inline void SPForSeed<SpacePoint>::setQuality(float q) {
   }
 }
 
-}  // namespace Legacy
-}  // namespace Acts
+}  // namespace Acts::Legacy

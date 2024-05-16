@@ -6,17 +6,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-/// @file Logger_tests.cpp
-
 #include <boost/test/unit_test.hpp>
 
 #include "Acts/Utilities/Logger.hpp"
 
+#include <cstddef>
 #include <fstream>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
-namespace Acts {
-namespace Test {
+namespace Acts::Test {
 
 using namespace Acts::Logging;
 
@@ -32,9 +34,6 @@ std::unique_ptr<const Logger> create_logger(const std::string& logger_name,
   return std::make_unique<const Logger>(std::move(output), std::move(print));
 }
 
-std::string failure_msg(const std::string& expected, const std::string& found) {
-  return std::string("'") + expected + "' != '" + found + "'";
-}
 }  // namespace detail
 /// @endcond
 
@@ -92,7 +91,7 @@ void debug_level_test(const char* output_file, Logging::Level lvl) {
 
     // Check output
     std::ifstream infile(output_file, std::ios::in);
-    size_t i = 0;
+    std::size_t i = 0;
     for (std::string line; std::getline(infile, line); ++i) {
       BOOST_CHECK_EQUAL(line, lines.at(i));
     }
@@ -103,6 +102,12 @@ void debug_level_test(const char* output_file, Logging::Level lvl) {
   auto copy = log->clone("TestLoggerClone");
   test(std::move(copy), "TestLoggerClone");
   BOOST_CHECK_EQUAL(log->name(), "TestLogger");
+
+  auto copy2 = log->clone("TestLoggerClone");
+  BOOST_CHECK_EQUAL(copy2->level(), log->level());
+
+  auto copy3 = log->cloneWithSuffix("Suffix");
+  BOOST_CHECK_EQUAL(log->level(), copy3->level());
 
   logfile = std::ofstream{output_file};  // clear output
 
@@ -138,5 +143,4 @@ BOOST_AUTO_TEST_CASE(DEBUG_test) {
 BOOST_AUTO_TEST_CASE(VERBOSE_test) {
   debug_level_test("verbose_log.txt", VERBOSE);
 }
-}  // namespace Test
-}  // namespace Acts
+}  // namespace Acts::Test

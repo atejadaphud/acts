@@ -9,16 +9,21 @@
 #include <boost/test/unit_test.hpp>
 
 #include "Acts/Definitions/Algebra.hpp"
+#include "Acts/Definitions/Direction.hpp"
 #include "Acts/Geometry/CutoutCylinderVolumeBounds.hpp"
 #include "Acts/Geometry/GeometryContext.hpp"
-#include "Acts/Geometry/Polyhedron.hpp"
 #include "Acts/Surfaces/Surface.hpp"
 #include "Acts/Tests/CommonHelpers/FloatComparisons.hpp"
-#include "Acts/Visualization/PlyVisualization3D.hpp"
+#include "Acts/Utilities/BinningType.hpp"
+#include "Acts/Utilities/BoundingBox.hpp"
 
-#include <fstream>
+#include <algorithm>
+#include <array>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace Acts {
 namespace Test {
@@ -190,18 +195,19 @@ BOOST_AUTO_TEST_CASE(CutoutCylinderVolumeOrientedBoundaries) {
   Vector3 zaxis(0., 0., 1.);
 
   for (auto& os : ccvbOrientedSurfaces) {
-    auto onSurface = os.first->binningPosition(geoCtx, binR);
-    auto osNormal = os.first->normal(geoCtx, onSurface);
-    double nDir = (double)os.second;
+    auto onSurface = os.surface->binningPosition(geoCtx, binR);
+    auto locPos =
+        os.surface->globalToLocal(geoCtx, onSurface, Vector3::Zero()).value();
+    auto osNormal = os.surface->normal(geoCtx, locPos);
     // Check if you step inside the volume with the oriented normal
-    auto insideCcvb = onSurface + nDir * osNormal;
-    auto outsideCCvb = onSurface - nDir * osNormal;
+    Vector3 insideCcvb = onSurface + os.direction * osNormal;
+    Vector3 outsideCCvb = onSurface - os.direction * osNormal;
 
     BOOST_CHECK(ccvb.inside(insideCcvb));
     BOOST_CHECK(!ccvb.inside(outsideCCvb));
 
     // Test the orientation of the boundary surfaces
-    auto rot = os.first->transform(geoCtx).rotation();
+    auto rot = os.surface->transform(geoCtx).rotation();
     BOOST_CHECK(rot.col(0).isApprox(xaxis));
     BOOST_CHECK(rot.col(1).isApprox(yaxis));
     BOOST_CHECK(rot.col(2).isApprox(zaxis));

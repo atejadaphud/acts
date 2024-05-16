@@ -9,18 +9,27 @@
 #include "Acts/Plugins/Geant4/Geant4Converters.hpp"
 
 #include "Acts/Definitions/Algebra.hpp"
+#include "Acts/Geometry/CylinderVolumeBounds.hpp"
 #include "Acts/Material/HomogeneousSurfaceMaterial.hpp"
 #include "Acts/Material/Material.hpp"
 #include "Acts/Material/MaterialSlab.hpp"
 #include "Acts/Surfaces/CylinderBounds.hpp"
 #include "Acts/Surfaces/CylinderSurface.hpp"
 #include "Acts/Surfaces/DiscSurface.hpp"
+#include "Acts/Surfaces/LineBounds.hpp"
 #include "Acts/Surfaces/PlaneSurface.hpp"
 #include "Acts/Surfaces/RadialBounds.hpp"
 #include "Acts/Surfaces/RectangleBounds.hpp"
-#include "Acts/Surfaces/Surface.hpp"
+#include "Acts/Surfaces/StrawSurface.hpp"
 #include "Acts/Surfaces/TrapezoidBounds.hpp"
-#include "Acts/Utilities/Helpers.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <iterator>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 #include "G4Box.hh"
 #include "G4LogicalVolume.hh"
@@ -47,13 +56,11 @@ Acts::Transform3 Acts::Geant4AlgebraConverter::transform(
                       scale * g4Trans[2]);
   // And the rotation to it
   RotationMatrix3 rotation;
-  rotation << g4Rot.xx(), g4Rot.yx(), g4Rot.zx(), g4Rot.xy(), g4Rot.yy(),
-      g4Rot.zy(), g4Rot.xz(), g4Rot.yz(), g4Rot.zz();
+  rotation << g4Rot.xx(), g4Rot.xy(), g4Rot.xz(), g4Rot.yx(), g4Rot.yy(),
+      g4Rot.yz(), g4Rot.zx(), g4Rot.zy(), g4Rot.zz();
   Transform3 transform = Transform3::Identity();
-  transform.matrix().block(0, 0, 3, 1) = rotation.col(0);
-  transform.matrix().block(0, 1, 3, 1) = rotation.col(1);
-  transform.matrix().block(0, 2, 3, 1) = rotation.col(2);
-  transform.matrix().block(0, 3, 3, 1) = translation;
+  transform.rotate(rotation);
+  transform.pretranslate(translation);
   return transform;
 }
 
@@ -64,33 +71,75 @@ Acts::Transform3 Acts::Geant4AlgebraConverter::transform(
   return transform(g4Rot, g4Trans);
 }
 
+Acts::Transform3 Acts::Geant4AlgebraConverter::transform(
+    const G4VPhysicalVolume& g4PhysVol) {
+  // Get Rotation and translation
+  auto g4Translation = g4PhysVol.GetTranslation();
+  auto g4Rotation = g4PhysVol.GetRotation();
+
+  G4Transform3D g4Transform =
+      (g4Rotation == nullptr)
+          ? G4Transform3D(CLHEP::HepRotation(), g4Translation)
+          : G4Transform3D(*g4Rotation, g4Translation);
+
+  return transform(g4Transform);
+}
+
 std::tuple<std::shared_ptr<Acts::CylinderBounds>, Acts::ActsScalar>
 Acts::Geant4ShapeConverter::cylinderBounds(const G4Tubs& g4Tubs) {
-  std::array<Acts::ActsScalar, 6u> tArray = {};
-  tArray[0u] = static_cast<ActsScalar>(g4Tubs.GetInnerRadius() +
-                                       g4Tubs.GetOuterRadius()) *
-               0.5;
-  tArray[1u] = static_cast<ActsScalar>(g4Tubs.GetZHalfLength());
-  tArray[2u] = 0.5 * static_cast<ActsScalar>(g4Tubs.GetDeltaPhiAngle());
-  tArray[3u] = static_cast<ActsScalar>(g4Tubs.GetStartPhiAngle());
+  using B = Acts::CylinderBounds;
 
-  ActsScalar thickness = (g4Tubs.GetOuterRadius() - g4Tubs.GetInnerRadius());
-
+  std::array<Acts::ActsScalar, B::eSize> tArray = {};
+  tArray[B::eR] = static_cast<ActsScalar>(g4Tubs.GetInnerRadius() +
+                                          g4Tubs.GetOuterRadius()) *
+                  0.5;
+  tArray[B::eHalfLengthZ] = static_cast<ActsScalar>(g4Tubs.GetZHalfLength());
+  tArray[B::eHalfPhiSector] =
+      0.5 * static_cast<ActsScalar>(g4Tubs.GetDeltaPhiAngle());
+  // Geant fiddles around with user given values, i.e. it would not
+  // allow [-M_PI, +M_PI) as a full segment (has to be [0, 2PI)])
+  if (std::abs(tArray[B::eHalfPhiSector] - M_PI) <
+      std::numeric_limits<ActsScalar>::epsilon()) {
+    tArray[B::eAveragePhi] = 0.;
+  } else {
+    tArray[B::eAveragePhi] =
+        static_cast<ActsScalar>(g4Tubs.GetStartPhiAngle()) +
+        tArray[B::eHalfPhiSector];
+  }
+  ActsScalar thickness = g4Tubs.GetOuterRadius() - g4Tubs.GetInnerRadius();
   auto cBounds = std::make_shared<CylinderBounds>(tArray);
-  return std::tie(cBounds, thickness);
+  return std::make_tuple(std::move(cBounds), thickness);
 }
 
 std::tuple<std::shared_ptr<Acts::RadialBounds>, Acts::ActsScalar>
 Acts::Geant4ShapeConverter::radialBounds(const G4Tubs& g4Tubs) {
-  std::array<ActsScalar, 4u> tArray = {};
-  tArray[0u] = static_cast<ActsScalar>(g4Tubs.GetInnerRadius());
-  tArray[1u] = static_cast<ActsScalar>(g4Tubs.GetOuterRadius());
-  tArray[2u] = 0.5 * static_cast<ActsScalar>(g4Tubs.GetDeltaPhiAngle());
-  tArray[3u] = static_cast<ActsScalar>(g4Tubs.GetStartPhiAngle());
+  using B = Acts::RadialBounds;
 
+  std::array<ActsScalar, B::eSize> tArray = {};
+  tArray[B::eMinR] = static_cast<ActsScalar>(g4Tubs.GetInnerRadius());
+  tArray[B::eMaxR] = static_cast<ActsScalar>(g4Tubs.GetOuterRadius());
+  tArray[B::eHalfPhiSector] =
+      0.5 * static_cast<ActsScalar>(g4Tubs.GetDeltaPhiAngle());
+  // Geant fiddles around with user given values, i.e. it would not
+  // allow [-M_PI, +M_PI) as a full segment (has to be [0, 2PI)])
+  if (std::abs(tArray[B::eHalfPhiSector] - M_PI) <
+      std::numeric_limits<ActsScalar>::epsilon()) {
+    tArray[B::eAveragePhi] = 0.;
+  } else {
+    tArray[B::eAveragePhi] =
+        static_cast<ActsScalar>(g4Tubs.GetStartPhiAngle()) +
+        tArray[B::eHalfPhiSector];
+  }
   ActsScalar thickness = g4Tubs.GetZHalfLength() * 2;
   auto rBounds = std::make_shared<RadialBounds>(tArray);
-  return std::tie(rBounds, thickness);
+  return std::make_tuple(std::move(rBounds), thickness);
+}
+
+std::shared_ptr<Acts::LineBounds> Acts::Geant4ShapeConverter::lineBounds(
+    const G4Tubs& g4Tubs) {
+  auto r = static_cast<ActsScalar>(g4Tubs.GetOuterRadius());
+  auto hlZ = static_cast<ActsScalar>(g4Tubs.GetZHalfLength());
+  return std::make_shared<LineBounds>(r, hlZ);
 }
 
 std::tuple<std::shared_ptr<Acts::RectangleBounds>, std::array<int, 2u>,
@@ -114,16 +163,18 @@ Acts::Geant4ShapeConverter::rectangleBounds(const G4Box& g4Box) {
       if (keepAxisOrder) {
         rAxes = {0, -2};  // flip for right-handed
       } else {
-        rAxes = {2, 0};  // cylcic positive
+        rAxes = {2, 0};  // cyclic positive
       }
     } break;
     case 2: {
       rAxes = {0, 1};
     } break;
+    default:  // do nothing
+      break;
   }
   auto rBounds = std::make_shared<RectangleBounds>(hG4XYZ[std::abs(rAxes[0u])],
                                                    hG4XYZ[std::abs(rAxes[1u])]);
-  return std::tie(rBounds, rAxes, thickness);
+  return std::make_tuple(std::move(rBounds), rAxes, thickness);
 }
 
 std::tuple<std::shared_ptr<Acts::TrapezoidBounds>, std::array<int, 2u>,
@@ -178,7 +229,7 @@ Acts::Geant4ShapeConverter::trapezoidBounds(const G4Trd& g4Trd) {
 
   auto tBounds = std::make_shared<TrapezoidBounds>(
       halfLengthXminY, halfLengthXmaxY, halfLengthY);
-  return std::tie(tBounds, rAxes, thickness);
+  return std::make_tuple(std::move(tBounds), rAxes, thickness);
 }
 
 std::tuple<std::shared_ptr<Acts::PlanarBounds>, std::array<int, 2u>,
@@ -187,19 +238,19 @@ Acts::Geant4ShapeConverter::planarBounds(const G4VSolid& g4Solid) {
   const G4Box* box = dynamic_cast<const G4Box*>(&g4Solid);
   if (box != nullptr) {
     auto [rBounds, axes, thickness] = rectangleBounds(*box);
-    return std::tie(rBounds, axes, thickness);
+    return std::make_tuple(std::move(rBounds), axes, thickness);
   }
 
   const G4Trd* trd = dynamic_cast<const G4Trd*>(&g4Solid);
   if (trd != nullptr) {
     auto [tBounds, axes, thickness] = trapezoidBounds(*trd);
-    return std::tie(tBounds, axes, thickness);
+    return std::make_tuple(std::move(tBounds), axes, thickness);
   }
 
   std::shared_ptr<Acts::PlanarBounds> pBounds = nullptr;
   std::array<int, 2u> rAxes = {};
   ActsScalar rThickness = 0.;
-  return std::tie(pBounds, rAxes, rThickness);
+  return std::make_tuple(std::move(pBounds), rAxes, rThickness);
 }
 
 namespace {
@@ -232,13 +283,13 @@ std::shared_ptr<Acts::Surface> Acts::Geant4PhysicalVolumeConverter::surface(
   auto assignMaterial = [&](Acts::Surface& sf, ActsScalar moriginal,
                             ActsScalar mcompressed) -> void {
     auto g4Material = g4LogVol->GetMaterial();
-    if (convertMaterial and g4Material != nullptr) {
+    if (convertMaterial && g4Material != nullptr) {
       if (compressed < 0.) {
         mcompressed = moriginal;
       }
       auto surfaceMaterial = Geant4MaterialConverter{}.surfaceMaterial(
           *g4Material, moriginal, mcompressed);
-      sf.assignSurfaceMaterial(surfaceMaterial);
+      sf.assignSurfaceMaterial(std::move(surfaceMaterial));
     }
   };
 
@@ -248,47 +299,63 @@ std::shared_ptr<Acts::Surface> Acts::Geant4PhysicalVolumeConverter::surface(
   // Into a rectangle
   auto g4Box = dynamic_cast<const G4Box*>(g4Solid);
   if (g4Box != nullptr) {
-    auto [bounds, axes, original] =
-        Geant4ShapeConverter{}.rectangleBounds(*g4Box);
-    auto orientedToGlobal = axesOriented(toGlobal, axes);
-    surface = Acts::Surface::makeShared<PlaneSurface>(orientedToGlobal,
-                                                      std::move(bounds));
-    assignMaterial(*surface.get(), original, compressed);
-    return surface;
+    if (forcedType == Surface::SurfaceType::Other ||
+        forcedType == Surface::SurfaceType::Plane) {
+      auto [bounds, axes, original] =
+          Geant4ShapeConverter{}.rectangleBounds(*g4Box);
+      auto orientedToGlobal = axesOriented(toGlobal, axes);
+      surface = Acts::Surface::makeShared<PlaneSurface>(orientedToGlobal,
+                                                        std::move(bounds));
+      assignMaterial(*surface.get(), original, compressed);
+      return surface;
+    } else {
+      throw std::runtime_error("Can not convert 'G4Box' into forced shape.");
+    }
   }
 
   // Into a Trapezoid
   auto g4Trd = dynamic_cast<const G4Trd*>(g4Solid);
   if (g4Trd != nullptr) {
-    auto [bounds, axes, original] =
-        Geant4ShapeConverter{}.trapezoidBounds(*g4Trd);
-    auto orientedToGlobal = axesOriented(toGlobal, axes);
-    surface = Acts::Surface::makeShared<PlaneSurface>(orientedToGlobal,
-                                                      std::move(bounds));
-    assignMaterial(*surface.get(), original, compressed);
-    return surface;
+    if (forcedType == Surface::SurfaceType::Other ||
+        forcedType == Surface::SurfaceType::Plane) {
+      auto [bounds, axes, original] =
+          Geant4ShapeConverter{}.trapezoidBounds(*g4Trd);
+      auto orientedToGlobal = axesOriented(toGlobal, axes);
+      surface = Acts::Surface::makeShared<PlaneSurface>(orientedToGlobal,
+                                                        std::move(bounds));
+      assignMaterial(*surface.get(), original, compressed);
+      return surface;
+    } else {
+      throw std::runtime_error("Can not convert 'G4Trd' into forced shape.");
+    }
   }
 
-  // Into a Cylinder or disc
+  // Into a Cylinder, disc or line
   auto g4Tubs = dynamic_cast<const G4Tubs*>(g4Solid);
   if (g4Tubs != nullptr) {
     ActsScalar diffR = g4Tubs->GetOuterRadius() - g4Tubs->GetInnerRadius();
     ActsScalar diffZ = 2 * g4Tubs->GetZHalfLength();
     // Detect if cylinder or disc case
     ActsScalar original = 0.;
-    if (diffR < diffZ) {
+    if (forcedType == Surface::SurfaceType::Cylinder ||
+        (diffR < diffZ && forcedType == Surface::SurfaceType::Other)) {
       auto [bounds, originalT] = Geant4ShapeConverter{}.cylinderBounds(*g4Tubs);
-
-      std::cout << "Creating cylinder with " << *bounds << std::endl;
-
       original = originalT;
       surface = Acts::Surface::makeShared<CylinderSurface>(toGlobal,
                                                            std::move(bounds));
-    } else {
+    } else if (forcedType == Surface::SurfaceType::Disc ||
+               forcedType == Surface::SurfaceType::Other) {
       auto [bounds, originalT] = Geant4ShapeConverter{}.radialBounds(*g4Tubs);
       original = originalT;
       surface =
           Acts::Surface::makeShared<DiscSurface>(toGlobal, std::move(bounds));
+    } else if (forcedType == Surface::SurfaceType::Straw) {
+      auto bounds = Geant4ShapeConverter{}.lineBounds(*g4Tubs);
+      surface =
+          Acts::Surface::makeShared<StrawSurface>(toGlobal, std::move(bounds));
+
+    } else {
+      throw std::runtime_error("Can not convert 'G4Tubs' into forced shape.");
     }
     assignMaterial(*surface.get(), original, compressed);
     return surface;
@@ -297,21 +364,53 @@ std::shared_ptr<Acts::Surface> Acts::Geant4PhysicalVolumeConverter::surface(
   return nullptr;
 }
 
+Acts::Material Acts::Geant4MaterialConverter::material(
+    const G4Material& g4Material, ActsScalar compression) {
+  auto X0 = g4Material.GetRadlen();
+  auto L0 = g4Material.GetNuclearInterLength();
+  auto Rho = g4Material.GetDensity();
+
+  // Get{A,Z} is only meaningful for single-element materials (according to
+  // the Geant4 docs). Need to compute average manually.
+  auto g4Elements = g4Material.GetElementVector();
+  auto g4Fraction = g4Material.GetFractionVector();
+  auto g4NElements = g4Material.GetNumberOfElements();
+  double Ar = 0;
+  double Z = 0;
+  if (g4NElements == 1) {
+    Ar = g4Elements->at(0)->GetN();
+    Z = g4Material.GetZ();
+  } else {
+    for (std::size_t i = 0; i < g4NElements; i++) {
+      Ar += g4Elements->at(i)->GetN() * g4Fraction[i];
+      Z += g4Elements->at(i)->GetZ() * g4Fraction[i];
+    }
+  }
+
+  return Material::fromMassDensity(X0 / compression, L0 / compression, Ar, Z,
+                                   compression * Rho);
+}
+
 std::shared_ptr<Acts::HomogeneousSurfaceMaterial>
 Acts::Geant4MaterialConverter::surfaceMaterial(const G4Material& g4Material,
                                                ActsScalar original,
                                                ActsScalar compressed) {
   ActsScalar compression = original / compressed;
-
-  auto g4X0 = g4Material.GetRadlen();
-  auto g4L0 = g4Material.GetNuclearInterLength();
-  auto g4Z = g4Material.GetZ();
-  auto g4A = g4Material.GetZ();
-  auto g4Rho = g4Material.GetDensity();
-
-  Material mat = Material::fromMassDensity(
-      g4X0 / compression, g4L0 / compression, g4A, g4Z, compression * g4Rho);
-
   return std::make_shared<HomogeneousSurfaceMaterial>(
-      MaterialSlab(mat, compressed));
+      MaterialSlab(material(g4Material, compression), compressed));
+}
+
+std::shared_ptr<Acts::CylinderVolumeBounds>
+Acts::Geant4VolumeConverter::cylinderBounds(const G4Tubs& g4Tubs) {
+  using C = Acts::CylinderVolumeBounds;
+
+  std::array<Acts::ActsScalar, C::eSize> tArray = {};
+  tArray[C::eMinR] = static_cast<ActsScalar>(g4Tubs.GetInnerRadius());
+  tArray[C::eMaxR] = static_cast<ActsScalar>(g4Tubs.GetOuterRadius());
+  tArray[C::eHalfLengthZ] = static_cast<ActsScalar>(g4Tubs.GetZHalfLength());
+  tArray[C::eHalfPhiSector] =
+      0.5 * static_cast<ActsScalar>(g4Tubs.GetDeltaPhiAngle());
+  tArray[C::eAveragePhi] = static_cast<ActsScalar>(g4Tubs.GetStartPhiAngle());
+
+  return std::make_shared<CylinderVolumeBounds>(tArray);
 }

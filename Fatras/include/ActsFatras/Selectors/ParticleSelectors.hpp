@@ -8,41 +8,41 @@
 
 #pragma once
 
-#include "Acts/Utilities/PdgParticle.hpp"
+#include "Acts/Definitions/PdgParticle.hpp"
 #include "ActsFatras/EventData/Particle.hpp"
 
 namespace ActsFatras {
 
 /// No-op particle selector that selects all particles.
 struct EveryParticle {
-  bool operator()(const Particle & /*unused*/) const { return true; }
+  bool operator()(const Particle & /*particle*/) const { return true; }
 };
 
 /// Select neutral particles.
 struct NeutralSelector {
   bool operator()(const Particle &particle) const {
-    return (particle.charge() == Particle::Scalar(0));
+    return (particle.charge() == Particle::Scalar{0});
   }
 };
 
 /// Select all charged particles.
 struct ChargedSelector {
   bool operator()(const Particle &particle) const {
-    return (particle.charge() != Particle::Scalar(0));
+    return (particle.charge() != Particle::Scalar{0});
   }
 };
 
 /// Select positively charged particles.
 struct PositiveSelector {
   bool operator()(const Particle &particle) const {
-    return (Particle::Scalar(0) < particle.charge());
+    return (Particle::Scalar{0} < particle.charge());
   }
 };
 
 /// Select negatively charged particles.
 struct NegativeSelector {
   bool operator()(const Particle &particle) const {
-    return (particle.charge() < Particle::Scalar(0));
+    return (particle.charge() < Particle::Scalar{0});
   }
 };
 

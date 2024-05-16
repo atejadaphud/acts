@@ -1,21 +1,18 @@
 add_library(
   ActsFatras SHARED
-  src/Digitization/Channelizer.cpp
+  src/Digitization/Segmentizer.cpp
   src/Digitization/DigitizationError.cpp
   src/Digitization/PlanarSurfaceMask.cpp
   src/Digitization/PlanarSurfaceDrift.cpp
   src/EventData/Particle.cpp
+  src/EventData/ParticleOutcome.cpp
   src/EventData/ProcessType.cpp
   src/Kernel/SimulationError.cpp
   src/Physics/BetheHeitler.cpp
   src/Physics/NuclearInteraction/NuclearInteraction.cpp
   src/Physics/PhotonConversion.cpp
   src/Physics/StandardInteractions.cpp
-  src/Utilities/LandauDistribution.cpp
-  src/Utilities/ParticleData.cpp)
-target_compile_features(
-  ActsFatras
-  PUBLIC cxx_std_17)
+  src/Utilities/LandauDistribution.cpp)
 target_include_directories(
   ActsFatras
   PUBLIC

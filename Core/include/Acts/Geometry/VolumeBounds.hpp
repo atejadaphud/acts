@@ -9,7 +9,9 @@
 #pragma once
 
 #include "Acts/Definitions/Algebra.hpp"
+#include "Acts/Definitions/Direction.hpp"
 #include "Acts/Geometry/Volume.hpp"
+#include "Acts/Surfaces/RegularSurface.hpp"
 #include "Acts/Utilities/BinningType.hpp"
 
 #include <cmath>
@@ -21,13 +23,13 @@
 namespace Acts {
 
 class Surface;
-
 class VolumeBounds;
-using VolumeBoundsPtr = std::shared_ptr<const VolumeBounds>;
+class Direction;
 
-using OrientedSurface =
-    std::pair<std::shared_ptr<Surface>, NavigationDirection>;
-using OrientedSurfaces = std::vector<OrientedSurface>;
+struct OrientedSurface {
+  std::shared_ptr<RegularSurface> surface;
+  Direction direction;
+};
 
 // Planar definitions to help construct the boundary surfaces
 static const Transform3 s_planeXY = Transform3::Identity();
@@ -65,6 +67,9 @@ class VolumeBounds {
     eOther = 6
   };
 
+  /// Static member to get the name of the BoundsType
+  static const std::vector<std::string> s_boundsTypeNames;
+
   VolumeBounds() = default;
 
   virtual ~VolumeBounds() = default;
@@ -98,7 +103,7 @@ class VolumeBounds {
   /// It will throw an exception if the orientation prescription is not adequate
   ///
   /// @return a vector of surfaces bounding this volume
-  virtual OrientedSurfaces orientedSurfaces(
+  virtual std::vector<OrientedSurface> orientedSurfaces(
       const Transform3& transform = Transform3::Identity()) const = 0;
 
   /// Construct bounding box for this shape
@@ -109,6 +114,18 @@ class VolumeBounds {
   virtual Volume::BoundingBox boundingBox(
       const Transform3* trf = nullptr, const Vector3& envelope = {0, 0, 0},
       const Volume* entity = nullptr) const = 0;
+
+  /// Get the canonical binning values, i.e. the binning values
+  /// for that fully describe the shape's extent
+  ///
+  /// @return vector of canonical binning values
+  ///
+  /// @note This is the default implementation that
+  /// returns the bounding box binning. Individual shapes
+  /// should override this method
+  virtual std::vector<Acts::BinningValue> canonicalBinning() const {
+    return {Acts::binX, Acts::binY, Acts::binZ};
+  };
 
   /// Binning offset - overloaded for some R-binning types
   ///

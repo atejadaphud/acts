@@ -8,12 +8,12 @@
 
 #pragma once
 
+#include "Acts/Utilities/VectorHelpers.hpp"
 #include "ActsFatras/EventData/Particle.hpp"
 
 #include <cmath>
 
-namespace ActsFatras {
-namespace Casts {
+namespace ActsFatras::Casts {
 
 /// Retrieve the transverse absolute distance of the position to the origin.
 struct Vrho {
@@ -40,7 +40,7 @@ struct AbsVz {
 struct Eta {
   double operator()(const Particle& particle) const {
     // particle direction is always normalized, i.e. dz = pz / p
-    return std::atanh(particle.unitDirection().z());
+    return std::atanh(particle.direction().z());
   }
 };
 
@@ -48,7 +48,7 @@ struct Eta {
 struct AbsEta {
   double operator()(const Particle& particle) const {
     // particle direction is always normalized, i.e. dz = pz / p
-    return std::atanh(std::abs(particle.unitDirection().z()));
+    return std::atanh(std::abs(particle.direction().z()));
   }
 };
 
@@ -57,8 +57,7 @@ struct Pt {
   double operator()(const Particle& particle) const {
     // particle direction is always normalized, i.e. dt²+dz²=1 w/ dt²=dx²+dy²
     return particle.absoluteMomentum() *
-           std::hypot(particle.unitDirection().x(),
-                      particle.unitDirection().y());
+           Acts::VectorHelpers::perp(particle.direction());
   }
 };
 
@@ -76,5 +75,4 @@ struct E {
   }
 };
 
-}  // namespace Casts
-}  // namespace ActsFatras
+}  // namespace ActsFatras::Casts

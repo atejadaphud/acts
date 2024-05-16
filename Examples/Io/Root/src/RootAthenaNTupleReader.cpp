@@ -1,6 +1,6 @@
 // This file is part of the Acts project.
 //
-// Copyright (C) 2017-2022 CERN for the benefit of the Acts project
+// Copyright (C) 2022-2024 CERN for the benefit of the Acts project
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,19 +8,22 @@
 
 #include "ActsExamples/Io/Root/RootAthenaNTupleReader.hpp"
 
+#include "Acts/Definitions/TrackParametrization.hpp"
+#include "Acts/EventData/GenericBoundTrackParameters.hpp"
 #include "Acts/EventData/TrackParameters.hpp"
 #include "Acts/Surfaces/PerigeeSurface.hpp"
+#include "Acts/Surfaces/Surface.hpp"
 #include "Acts/Vertexing/Vertex.hpp"
-#include "ActsExamples/EventData/SimParticle.hpp"
 #include "ActsExamples/EventData/Track.hpp"
-#include "ActsExamples/Framework/WhiteBoard.hpp"
-#include "ActsExamples/Utilities/Paths.hpp"
+#include "ActsExamples/Framework/AlgorithmContext.hpp"
+#include "ActsExamples/Io/Root/RootUtility.hpp"
 
+#include <cstdint>
 #include <iostream>
+#include <optional>
+#include <stdexcept>
 
 #include <TChain.h>
-#include <TFile.h>
-#include <TMath.h>
 
 ActsExamples::RootAthenaNTupleReader::RootAthenaNTupleReader(
     const ActsExamples::RootAthenaNTupleReader::Config& config,
@@ -34,6 +37,11 @@ ActsExamples::RootAthenaNTupleReader::RootAthenaNTupleReader(
   if (m_cfg.inputTreeName.empty()) {
     throw std::invalid_argument("Missing tree name");
   }
+
+  m_outputTrackParameters.initialize(m_cfg.outputTrackParameters);
+  m_outputTruthVtxParameters.initialize(m_cfg.outputTruthVtxParameters);
+  m_outputRecoVtxParameters.initialize(m_cfg.outputRecoVtxParameters);
+  m_outputBeamspotConstraint.initialize(m_cfg.outputBeamspotConstraint);
 
   m_inputChain = new TChain(m_cfg.inputTreeName.c_str());
 
@@ -106,18 +114,6 @@ ActsExamples::RootAthenaNTupleReader::RootAthenaNTupleReader(
 
   m_events = m_inputChain->GetEntries();
   ACTS_DEBUG("The full chain has " << m_events << " entries.");
-
-  {
-    // The entry numbers for accessing events in increased order (there could be
-    // multiple entries corresponding to one event number)
-    std::vector<long long> m_entryNumbers;
-    // If the events are not in order, get the entry numbers for ordered events
-    m_entryNumbers.resize(m_events);
-    m_inputChain->Draw("EventNumber", "", "goff");
-    // Sort to get the entry numbers of the ordered events
-    TMath::Sort(m_inputChain->GetEntries(), m_inputChain->GetV1(),
-                m_entryNumbers.data(), false);
-  }
 }
 
 ActsExamples::ProcessCode ActsExamples::RootAthenaNTupleReader::read(
@@ -161,10 +157,8 @@ ActsExamples::ProcessCode ActsExamples::RootAthenaNTupleReader::read(
     params[Acts::BoundIndices::eBoundQOverP] = m_branches.track_qOverP[i];
     params[Acts::BoundIndices::eBoundTime] = m_branches.track_t[i];
 
-    const double q = 1;
-
     // Construct and fill covariance matrix
-    Acts::BoundSymMatrix cov;
+    Acts::BoundSquareMatrix cov;
 
     // Variances
     cov(Acts::BoundIndices::eBoundLoc0, Acts::BoundIndices::eBoundLoc0) =
@@ -220,7 +214,9 @@ ActsExamples::ProcessCode ActsExamples::RootAthenaNTupleReader::read(
     cov(Acts::BoundIndices::eBoundQOverP, Acts::BoundIndices::eBoundTheta) =
         m_branches.track_cov_tehtaqOverP[i];
 
-    Acts::BoundTrackParameters tc(surface, params, q, cov);
+    // TODO we do not have a hypothesis at hand here. defaulting to pion
+    Acts::BoundTrackParameters tc(surface, params, cov,
+                                  Acts::ParticleHypothesis::pion());
     trackContainer.push_back(tc);
   }
 
@@ -237,9 +233,9 @@ ActsExamples::ProcessCode ActsExamples::RootAthenaNTupleReader::read(
     recoVertexContainer.push_back(vtx);
   }
 
-  Acts::Vertex<Acts::BoundTrackParameters> beamspotConstraint;
+  Acts::Vertex beamspotConstraint;
   Acts::Vector3 beamspotPos;
-  Acts::SymMatrix3 beamspotCov;
+  Acts::SquareMatrix3 beamspotCov;
 
   beamspotPos << m_branches.beamspot_x, m_branches.beamspot_y,
       m_branches.beamspot_z;
@@ -250,14 +246,10 @@ ActsExamples::ProcessCode ActsExamples::RootAthenaNTupleReader::read(
   beamspotConstraint.setPosition(beamspotPos);
   beamspotConstraint.setCovariance(beamspotCov);
 
-  context.eventStore.add(m_cfg.outputTrackParameters,
-                         std::move(trackContainer));
-  context.eventStore.add(m_cfg.outputTruthVtxParameters,
-                         std::move(truthVertexContainer));
-  context.eventStore.add(m_cfg.outputRecoVtxParameters,
-                         std::move(recoVertexContainer));
-  context.eventStore.add(m_cfg.outputBeamspotConstraint,
-                         std::move(beamspotConstraint));
+  m_outputTrackParameters(context, std::move(trackContainer));
+  m_outputTruthVtxParameters(context, std::move(truthVertexContainer));
+  m_outputRecoVtxParameters(context, std::move(recoVertexContainer));
+  m_outputBeamspotConstraint(context, std::move(beamspotConstraint));
 
   // Return success flag
   return ProcessCode::SUCCESS;

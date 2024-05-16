@@ -1,6 +1,6 @@
 // This file is part of the Acts project.
 //
-// Copyright (C) 2017-2021 CERN for the benefit of the Acts project
+// Copyright (C) 2017-2024 CERN for the benefit of the Acts project
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,22 +8,25 @@
 
 #include "ActsExamples/Io/Root/RootParticleReader.hpp"
 
-#include "Acts/EventData/TrackParameters.hpp"
-#include "Acts/Surfaces/PerigeeSurface.hpp"
+#include "Acts/Definitions/PdgParticle.hpp"
+#include "Acts/Utilities/Logger.hpp"
 #include "ActsExamples/EventData/SimParticle.hpp"
-#include "ActsExamples/Framework/WhiteBoard.hpp"
-#include "ActsExamples/Utilities/Paths.hpp"
+#include "ActsExamples/Framework/AlgorithmContext.hpp"
+#include "ActsExamples/Io/Root/RootUtility.hpp"
+#include "ActsFatras/EventData/ProcessType.hpp"
 
+#include <algorithm>
+#include <cstdint>
 #include <iostream>
+#include <stdexcept>
 
 #include <TChain.h>
-#include <TFile.h>
-#include <TMath.h>
 
-ActsExamples::RootParticleReader::RootParticleReader(
-    const ActsExamples::RootParticleReader::Config& config,
-    Acts::Logging::Level level)
-    : ActsExamples::IReader(),
+namespace ActsExamples {
+
+RootParticleReader::RootParticleReader(const RootParticleReader::Config& config,
+                                       Acts::Logging::Level level)
+    : IReader(),
       m_cfg(config),
       m_logger(Acts::getDefaultLogger(name(), level)) {
   m_inputChain = new TChain(m_cfg.treeName.c_str());
@@ -34,6 +37,8 @@ ActsExamples::RootParticleReader::RootParticleReader(
   if (m_cfg.treeName.empty()) {
     throw std::invalid_argument("Missing tree name");
   }
+
+  m_outputParticles.initialize(m_cfg.outputParticles);
 
   // Set the branches
   m_inputChain->SetBranchAddress("event_id", &m_eventId);
@@ -68,22 +73,21 @@ ActsExamples::RootParticleReader::RootParticleReader(
   m_events = m_inputChain->GetEntries();
   ACTS_DEBUG("The full chain has " << m_events << " entries.");
 
-  // If the events are not in order, get the entry numbers for ordered events
-  if (not m_cfg.orderedEvents) {
+  // Sort the entry numbers of the events
+  {
     m_entryNumbers.resize(m_events);
     m_inputChain->Draw("event_id", "", "goff");
-    // Sort to get the entry numbers of the ordered events
-    TMath::Sort(m_inputChain->GetEntries(), m_inputChain->GetV1(),
-                m_entryNumbers.data(), false);
+    RootUtility::stableSort(m_inputChain->GetEntries(), m_inputChain->GetV1(),
+                            m_entryNumbers.data(), false);
   }
 }
 
-std::pair<size_t, size_t> ActsExamples::RootParticleReader::availableEvents()
+std::pair<std::size_t, std::size_t> RootParticleReader::availableEvents()
     const {
   return {0u, m_events};
 }
 
-ActsExamples::RootParticleReader::~RootParticleReader() {
+RootParticleReader::~RootParticleReader() {
   delete m_particleId;
   delete m_particleType;
   delete m_process;
@@ -107,63 +111,55 @@ ActsExamples::RootParticleReader::~RootParticleReader() {
   delete m_subParticle;
 }
 
-ActsExamples::ProcessCode ActsExamples::RootParticleReader::read(
-    const ActsExamples::AlgorithmContext& context) {
+ProcessCode RootParticleReader::read(const AlgorithmContext& context) {
   ACTS_DEBUG("Trying to read recorded particles.");
 
-  // read in the particle
-  if (m_inputChain != nullptr && context.eventNumber < m_events) {
-    // lock the mutex
-    std::lock_guard<std::mutex> lock(m_read_mutex);
-    // now read
-
-    // The particle collection to be written
-    SimParticleContainer particleContainer;
-
-    // Primary vertex collection
-    std::vector<uint32_t> priVtxCollection;
-    // Secondary vertex collection
-    std::vector<uint32_t> secVtxCollection;
-
-    // Read the correct entry
-    auto entry = context.eventNumber;
-    if (not m_cfg.orderedEvents and entry < m_entryNumbers.size()) {
-      entry = m_entryNumbers[entry];
-    }
-    m_inputChain->GetEntry(entry);
-    ACTS_INFO("Reading event: " << context.eventNumber
-                                << " stored as entry: " << entry);
-
-    unsigned int nParticles = m_particleId->size();
-
-    for (unsigned int i = 0; i < nParticles; i++) {
-      SimParticle p;
-
-      p.setParticleId((*m_particleId)[i]);
-      p.setPosition4((*m_vx)[i], (*m_vy)[i], (*m_vz)[i], (*m_vt)[i]);
-      p.setDirection((*m_px)[i], (*m_py)[i], (*m_pz)[i]);
-      p.setAbsoluteMomentum((*m_p)[i]);
-      p.setCharge((*m_q)[i]);
-
-      particleContainer.insert(particleContainer.end(), p);
-      priVtxCollection.push_back((*m_vertexPrimary)[i]);
-      secVtxCollection.push_back((*m_vertexSecondary)[i]);
-    }
-
-    // Write the collections to the EventStore
-    context.eventStore.add(m_cfg.particleCollection,
-                           std::move(particleContainer));
-
-    if (not m_cfg.vertexPrimaryCollection.empty()) {
-      context.eventStore.add(m_cfg.vertexPrimaryCollection,
-                             std::move(priVtxCollection));
-    }
-
-    if (not m_cfg.vertexSecondaryCollection.empty()) {
-      context.eventStore.add(m_cfg.vertexSecondaryCollection,
-                             std::move(secVtxCollection));
-    }
+  if (m_inputChain == nullptr || context.eventNumber >= m_events) {
+    return ProcessCode::SUCCESS;
   }
+
+  // lock the mutex
+  std::lock_guard<std::mutex> lock(m_read_mutex);
+  // now read
+
+  // The particle collection to be filled
+  SimParticleContainer particles;
+
+  // Read the correct entry
+  auto entry = m_entryNumbers.at(context.eventNumber);
+  m_inputChain->GetEntry(entry);
+  ACTS_DEBUG("Reading event: " << context.eventNumber
+                               << " stored as entry: " << entry);
+
+  unsigned int nParticles = m_particleId->size();
+
+  for (unsigned int i = 0; i < nParticles; i++) {
+    SimParticle p;
+
+    p.setProcess(static_cast<ActsFatras::ProcessType>((*m_process)[i]));
+    p.setPdg(static_cast<Acts::PdgParticle>((*m_particleType)[i]));
+    p.setCharge((*m_q)[i] * Acts::UnitConstants::e);
+    p.setMass((*m_m)[i] * Acts::UnitConstants::GeV);
+    p.setParticleId((*m_particleId)[i]);
+    p.setPosition4((*m_vx)[i] * Acts::UnitConstants::mm,
+                   (*m_vy)[i] * Acts::UnitConstants::mm,
+                   (*m_vz)[i] * Acts::UnitConstants::mm,
+                   (*m_vt)[i] * Acts::UnitConstants::mm);
+    // NOTE: direction is normalized inside `setDirection`
+    p.setDirection((*m_px)[i], (*m_py)[i], (*m_pz)[i]);
+    p.setAbsoluteMomentum((*m_p)[i] * Acts::UnitConstants::GeV);
+
+    particles.insert(p);
+  }
+
+  ACTS_DEBUG("Read " << particles.size() << " particles for event "
+                     << context.eventNumber);
+
+  // Write the collections to the EventStore
+  m_outputParticles(context, std::move(particles));
+
   // Return success flag
-  return ActsExamples::ProcessCode::SUCCESS;
+  return ProcessCode::SUCCESS;
 }
+
+}  // namespace ActsExamples

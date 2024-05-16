@@ -8,19 +8,21 @@
 
 #pragma once
 
+#include "Acts/Definitions/Algebra.hpp"
 #include "ActsExamples/EventData/ExtractedSimulationProcess.hpp"
 #include "ActsExamples/EventData/SimParticle.hpp"
 
+#include <algorithm>
+#include <cstdint>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include <TH1F.h>
-#include <TVectorF.h>
+#include <TVectorFfwd.h>
 
-namespace ActsExamples {
-namespace detail {
-namespace NuclearInteractionParametrisation {
+namespace ActsExamples::detail::NuclearInteractionParametrisation {
 
 /// This struct stores a fraction of an event around a nuclear
 /// interaction.
@@ -29,7 +31,7 @@ struct EventFraction {
 
   /// @brief Constructor
   ///
-  /// @param [in] event Tuple containing the inital particle, the particle
+  /// @param [in] event Tuple containing the initial particle, the particle
   /// before the interaction and all final state particles after the interaction
   EventFraction(const ActsExamples::ExtractedSimulationProcess& event)
       : initialParticle(event.initial),
@@ -40,7 +42,7 @@ struct EventFraction {
   ActsExamples::SimParticle initialParticle;
   /// The particle before the interaction
   ActsExamples::SimParticle interactingParticle;
-  /// All particles after the interaction occured
+  /// All particles after the interaction occurred
   std::vector<ActsExamples::SimParticle> finalParticles;
 
   /// Label whether it was a soft interaction or a hard one
@@ -188,6 +190,4 @@ TVectorF softProbability(const EventCollection& events);
 /// @return The cumulative distribution for the nuclear interaction
 CumulativeDistribution cumulativeNuclearInteractionProbability(
     const EventCollection& events, unsigned int interactionProbabilityBins);
-}  // namespace NuclearInteractionParametrisation
-}  // namespace detail
-}  // namespace ActsExamples
+}  // namespace ActsExamples::detail::NuclearInteractionParametrisation

@@ -12,8 +12,7 @@
 
 #include <random>
 
-namespace ActsFatras {
-namespace detail {
+namespace ActsFatras::detail {
 
 /// Generate scattering angles using a Gaussian mixture model.
 struct GaussianMixture {
@@ -42,8 +41,8 @@ struct GaussianMixture {
                     Particle &particle) const {
     /// Calculate the highland formula first
     double sigma = Acts::computeMultipleScatteringTheta0(
-        slab, particle.pdg(), particle.mass(),
-        particle.charge() / particle.absoluteMomentum(), particle.charge());
+        slab, particle.absolutePdg(), particle.mass(), particle.qOverP(),
+        particle.absoluteCharge());
     double sigma2 = sigma * sigma;
 
     // Gauss distribution, will be sampled with generator
@@ -89,5 +88,4 @@ struct GaussianMixture {
   }
 };
 
-}  // namespace detail
-}  // namespace ActsFatras
+}  // namespace ActsFatras::detail

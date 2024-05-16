@@ -8,10 +8,13 @@
 
 #pragma once
 
+#include "Acts/Utilities/Logger.hpp"
 #include "ActsExamples/EventData/SimSpacePoint.hpp"
+#include "ActsExamples/Framework/ProcessCode.hpp"
 #include "ActsExamples/Framework/WriterT.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <mutex>
 #include <string>
 
@@ -19,6 +22,7 @@ class TFile;
 class TTree;
 
 namespace ActsExamples {
+struct AlgorithmContext;
 
 /// Write out space points as a flat TTree.
 ///
@@ -51,7 +55,7 @@ class RootSpacepointWriter final : public WriterT<SimSpacePointContainer> {
   ~RootSpacepointWriter() final;
 
   /// End-of-run hook
-  ProcessCode endRun() final;
+  ProcessCode finalize() final;
 
   /// Get readonly access to the config parameters
   const Config& config() const { return m_cfg; }
@@ -60,7 +64,7 @@ class RootSpacepointWriter final : public WriterT<SimSpacePointContainer> {
   /// Type-specific write implementation.
   ///
   /// @param[in] ctx is the algorithm context
-  /// @param[in] hits are the hits to be written
+  /// @param[in] spacepoints are the spacepoints to be written
   ProcessCode writeT(const AlgorithmContext& ctx,
                      const SimSpacePointContainer& spacepoints) final;
 

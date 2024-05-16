@@ -7,10 +7,12 @@ file(MAKE_DIRECTORY ${_python_dir}/acts)
 
 set(_python_install_dir "python/acts")
 
-pybind11_add_module(ActsPythonBindings 
+pybind11_add_module(ActsPythonBindings
   src/ModuleEntry.cpp
+  src/Framework.cpp
   src/Base.cpp
   src/Detector.cpp
+  src/Digitization.cpp
   src/Material.cpp
   src/Geometry.cpp
   src/ExampleAlgorithms.cpp
@@ -19,21 +21,24 @@ pybind11_add_module(ActsPythonBindings
   src/Input.cpp
   src/Propagation.cpp
   src/Generators.cpp
+  src/Obj.cpp
   src/TruthTracking.cpp
   src/TrackFitting.cpp
-  src/TrackFittingChi2.cpp
   src/TrackFinding.cpp
   src/Vertexing.cpp
+  src/AmbiguityResolution.cpp
+  src/EventData.cpp
 )
 install(TARGETS ActsPythonBindings DESTINATION ${_python_install_dir})
 
 set_target_properties(ActsPythonBindings PROPERTIES INSTALL_RPATH "\$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
 set_target_properties(ActsPythonBindings PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${_python_dir}/acts)
 
-target_link_libraries(ActsPythonBindings PUBLIC 
-  ActsCore 
+target_link_libraries(ActsPythonBindings PUBLIC
+  ActsCore
   ActsPythonUtilities
   ActsExamplesFramework
+  ActsExamplesGeometry
   ActsExamplesDetectorGeneric
   ActsExamplesDetectorContextual
   ActsExamplesDetectorTGeo
@@ -45,17 +50,18 @@ target_link_libraries(ActsPythonBindings PUBLIC
   ActsExamplesIoJson
   ActsExamplesIoPerformance
   ActsExamplesGenerators
+  ActsExamplesPrinters
   ActsExamplesTrackFinding
   ActsExamplesTrackFitting
-  ActsExamplesTrackFittingChi2
   ActsExamplesVertexing
   ActsExamplesFatras
-  ActsExamplesPrinters
   ActsExamplesDetectorTelescope
+  ActsExamplesUtilities
+  ActsExamplesAmbiguityResolution
 )
 
-set(py_files 
-  __init__.py 
+set(py_files
+  __init__.py
   examples/__init__.py
   examples/simulation.py
   examples/reconstruction.py
@@ -78,16 +84,15 @@ else()
   target_sources(ActsPythonBindings PRIVATE src/SvgStub.cpp)
 endif()
 
-
 if(ACTS_BUILD_PLUGIN_DD4HEP AND ACTS_BUILD_EXAMPLES_DD4HEP)
   pybind11_add_module(ActsPythonBindingsDD4hep src/DD4hepComponent.cpp)
-  target_link_libraries(ActsPythonBindingsDD4hep PUBLIC 
+  target_link_libraries(ActsPythonBindingsDD4hep PUBLIC
     ActsPythonUtilities
     ActsExamplesDetectorDD4hep)
   add_dependencies(ActsPythonBindings ActsPythonBindingsDD4hep)
 
   install(TARGETS ActsPythonBindingsDD4hep DESTINATION ${_python_install_dir})
-  set_target_properties(ActsPythonBindingsDD4hep PROPERTIES INSTALL_RPATH "\$ORIGIN../../${CMAKE_INSTALL_LIBDIR}")
+  set_target_properties(ActsPythonBindingsDD4hep PROPERTIES INSTALL_RPATH "\$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
   set_target_properties(ActsPythonBindingsDD4hep PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${_python_dir}/acts)
   list(APPEND py_files examples/dd4hep.py)
 endif()
@@ -99,35 +104,28 @@ else()
   target_sources(ActsPythonBindings PRIVATE src/Pythia8Stub.cpp)
 endif()
 
-if(ACTS_BUILD_PLUGIN_IDENTIFICATION)
-  target_link_libraries(ActsPythonBindings PUBLIC ActsExamplesDigitization)
-  target_sources(ActsPythonBindings PRIVATE src/Digitization.cpp)
-else()
-  target_sources(ActsPythonBindings PRIVATE src/DigitizationStub.cpp)
-endif()
-
 if(ACTS_BUILD_EXAMPLES_GEANT4)
   pybind11_add_module(ActsPythonBindingsGeant4 src/Geant4Component.cpp)
-  target_link_libraries(ActsPythonBindingsGeant4 PUBLIC 
+  target_link_libraries(ActsPythonBindingsGeant4 PUBLIC
     ActsExamplesGeant4 ActsExamplesDetectorGeant4
-    ActsPythonUtilities)
+    ActsPythonUtilities ActsExamplesMuonSpectrometerMockupDetector)
   add_dependencies(ActsPythonBindings ActsPythonBindingsGeant4)
 
   install(TARGETS ActsPythonBindingsGeant4 DESTINATION ${_python_install_dir})
-  set_target_properties(ActsPythonBindingsGeant4 PROPERTIES INSTALL_RPATH "\$ORIGIN../../${CMAKE_INSTALL_LIBDIR}")
+  set_target_properties(ActsPythonBindingsGeant4 PROPERTIES INSTALL_RPATH "\$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
   set_target_properties(ActsPythonBindingsGeant4 PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${_python_dir}/acts)
   list(APPEND py_files examples/geant4/__init__.py)
 
   if(ACTS_BUILD_PLUGIN_DD4HEP AND ACTS_BUILD_EXAMPLES_DD4HEP)
     pybind11_add_module(ActsPythonBindingsDDG4 src/Geant4DD4hepComponent.cpp)
-    target_link_libraries(ActsPythonBindingsDDG4 PUBLIC 
+    target_link_libraries(ActsPythonBindingsDDG4 PUBLIC
       ActsPythonUtilities
       ActsExamplesGeant4
       ActsExamplesDetectorDD4hep)
     add_dependencies(ActsPythonBindings ActsPythonBindingsDDG4)
 
     install(TARGETS ActsPythonBindingsDDG4 DESTINATION ${_python_install_dir})
-    set_target_properties(ActsPythonBindingsDDG4 PROPERTIES INSTALL_RPATH "\$ORIGIN../../${CMAKE_INSTALL_LIBDIR}")
+    set_target_properties(ActsPythonBindingsDDG4 PROPERTIES INSTALL_RPATH "\$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
     set_target_properties(ActsPythonBindingsDDG4 PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${_python_dir}/acts)
     list(APPEND py_files examples/geant4/dd4hep.py)
   endif()
@@ -158,16 +156,29 @@ else()
 endif()
 
 if(ACTS_BUILD_EXAMPLES_EDM4HEP)
-  target_link_libraries(ActsPythonBindings PUBLIC ActsExamplesIoEDM4hep)
-  target_sources(ActsPythonBindings PRIVATE src/EDM4hep.cpp)
+  pybind11_add_module(ActsPythonBindingsEDM4hep src/EDM4hepComponent.cpp)
+  target_link_libraries(ActsPythonBindingsEDM4hep PUBLIC
+    ActsPythonUtilities ActsExamplesIoEDM4hep)
+  add_dependencies(ActsPythonBindings ActsPythonBindingsEDM4hep)
+  install(TARGETS ActsPythonBindingsEDM4hep DESTINATION ${_python_install_dir})
+  set_target_properties(ActsPythonBindingsEDM4hep PROPERTIES INSTALL_RPATH "\$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
+  set_target_properties(ActsPythonBindingsEDM4hep PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${_python_dir}/acts)
   list(APPEND py_files examples/edm4hep.py)
-else()
-  target_sources(ActsPythonBindings PRIVATE src/EDM4hepStub.cpp)
 endif()
 
-add_custom_target(ActsPythonGlueCode)
+if(ACTS_BUILD_PLUGIN_ONNX)
+  target_link_libraries(ActsPythonBindings PUBLIC ActsExamplesFrameworkML ActsExamplesTrackFindingML)
+  target_sources(ActsPythonBindings PRIVATE src/Onnx.cpp)
+  target_sources(ActsPythonBindings PRIVATE src/OnnxNeuralCalibrator.cpp)
+  list(APPEND py_files examples/onnx/__init__.py)
+
+else()
+  target_sources(ActsPythonBindings PRIVATE src/OnnxStub.cpp)
+  target_sources(ActsPythonBindings PRIVATE src/OnnxNeuralCalibratorStub.cpp)
+endif()
+
 configure_file(setup.sh.in ${_python_dir}/setup.sh @ONLY)
-install(FILES setup.sh.in DESTINATION "python" RENAME setup.sh)
+install(FILES ${_python_dir}/setup.sh DESTINATION "python")
 
 foreach(f ${py_files})
 set(_target ${_python_dir}/acts/${f})
@@ -178,5 +189,3 @@ file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/python/acts/${f} ${_target} SYMBOLI
 endforeach()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/acts/ DESTINATION ${_python_install_dir})
-
-add_dependencies(ActsPythonBindings ActsPythonGlueCode)

@@ -9,22 +9,32 @@
 #include <boost/test/data/test_case.hpp>
 #include <boost/test/unit_test.hpp>
 
+#include "Acts/Definitions/Units.hpp"
 #include "Acts/Geometry/GeometryContext.hpp"
 #include "Acts/Geometry/Layer.hpp"
 #include "Acts/Geometry/LayerCreator.hpp"
+#include "Acts/Geometry/ProtoLayerHelper.hpp"
 #include "Acts/Geometry/SurfaceArrayCreator.hpp"
 #include "Acts/Plugins/TGeo/TGeoLayerBuilder.hpp"
+#include "Acts/Surfaces/SurfaceArray.hpp"
 #include "Acts/Tests/CommonHelpers/DataDirectory.hpp"
+#include "Acts/Utilities/BinningType.hpp"
+#include "Acts/Utilities/Logger.hpp"
 #include "Acts/Visualization/GeometryView3D.hpp"
 #include "Acts/Visualization/ObjVisualization3D.hpp"
+
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "TGeoManager.h"
 
 using namespace Acts::UnitLiterals;
 
-namespace Acts {
-
-namespace Test {
+namespace Acts::Test {
 
 /// @brief struct to load the global geometry
 struct RootGeometry {
@@ -92,7 +102,7 @@ BOOST_AUTO_TEST_CASE(TGeoLayerBuilderTests) {
 
   auto positiveLayers = tglb.positiveLayers(tgContext);
   // Check that it's split into two layers
-  size_t ipl = 0;
+  std::size_t ipl = 0;
   BOOST_CHECK_EQUAL(positiveLayers.size(), 2u);
   BOOST_CHECK_EQUAL(tglb.detectorElements().size(), 14u + 16u);
   for (const auto& pLayer : positiveLayers) {
@@ -107,6 +117,4 @@ BOOST_AUTO_TEST_CASE(TGeoLayerBuilderTests) {
   }
 }
 
-}  // namespace Test
-
-}  // namespace Acts
+}  // namespace Acts::Test

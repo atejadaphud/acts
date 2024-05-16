@@ -9,10 +9,12 @@
 #include <boost/test/unit_test.hpp>
 
 #include "Acts/Material/ProtoVolumeMaterial.hpp"
+#include "Acts/Utilities/BinUtility.hpp"
+#include "Acts/Utilities/BinningType.hpp"
 
-namespace Acts {
+#include <utility>
 
-namespace Test {
+namespace Acts::Test {
 
 /// Test the constructors
 BOOST_AUTO_TEST_CASE(ProtoVolumeMaterial_construction_test) {
@@ -28,5 +30,4 @@ BOOST_AUTO_TEST_CASE(ProtoVolumeMaterial_construction_test) {
   ProtoVolumeMaterial vmpCopyMoved(std::move(vmpCopy));
 }
 
-}  // namespace Test
-}  // namespace Acts
+}  // namespace Acts::Test

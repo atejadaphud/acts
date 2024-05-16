@@ -20,7 +20,7 @@ namespace Acts {
 struct SurfaceBinningMatcher {
   /// The binning tolerance parameters
   using Range = std::pair<double, double>;
-  std::vector<Range> tolerances{(int)binValues, {0., 0.}};
+  std::vector<Range> tolerances{static_cast<int>(binValues), {0., 0.}};
 
   SurfaceBinningMatcher() = default;
 
@@ -49,7 +49,7 @@ struct SurfaceBinningMatcher {
     double otherMin = otherExt.min(bValue);
     double otherMax = otherExt.max(bValue);
 
-    return (std::abs(oneMin - otherMin) <= tolerances[bValue].first and
+    return (std::abs(oneMin - otherMin) <= tolerances[bValue].first &&
             std::abs(oneMax - otherMax) <= tolerances[bValue].second);
   }
 };

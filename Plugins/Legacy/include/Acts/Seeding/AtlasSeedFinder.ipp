@@ -89,62 +89,6 @@ Acts::Legacy::AtlasSeedFinder<SpacePoint>::AtlasSeedFinder() {
 }
 
 ///////////////////////////////////////////////////////////////////
-// Destructor
-///////////////////////////////////////////////////////////////////
-template <class SpacePoint>
-Acts::Legacy::AtlasSeedFinder<SpacePoint>::~AtlasSeedFinder<SpacePoint>() {
-  if (r_index != nullptr) {
-    delete[] r_index;
-  }
-  if (r_map != nullptr) {
-    delete[] r_map;
-  }
-  if (r_Sorted != nullptr) {
-    delete[] r_Sorted;
-  }
-
-  // Delete seeds
-  //
-  for (i_seed = l_seeds.begin(); i_seed != l_seeds.end(); ++i_seed) {
-    delete *i_seed;
-  }
-  // Delete space points for reconstruction
-  //
-  i_spforseed = l_spforseed.begin();
-  for (; i_spforseed != l_spforseed.end(); ++i_spforseed) {
-    delete *i_spforseed;
-  }
-  if (m_seedOutput != nullptr) {
-    delete m_seedOutput;
-  }
-
-  if (m_SP != nullptr) {
-    delete[] m_SP;
-  }
-  if (m_R != nullptr) {
-    delete[] m_R;
-  }
-  if (m_Tz != nullptr) {
-    delete[] m_Tz;
-  }
-  if (m_Er != nullptr) {
-    delete[] m_Er;
-  }
-  if (m_U != nullptr) {
-    delete[] m_U;
-  }
-  if (m_V != nullptr) {
-    delete[] m_V;
-  }
-  if (m_Zo != nullptr) {
-    delete[] m_Zo;
-  }
-  if (m_OneSeeds != nullptr) {
-    delete[] m_OneSeeds;
-  }
-}
-
-///////////////////////////////////////////////////////////////////
 // Initialize tool for new event
 ///////////////////////////////////////////////////////////////////
 template <typename SpacePoint>
@@ -197,7 +141,7 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::newEvent(int iteration,
     if (!sps) {
       continue;
     }
-    int ir = int(sps->radius() * irstep);
+    int ir = static_cast<int>(sps->radius() * irstep);
     if (ir > irmax) {
       ir = irmax;
     }
@@ -257,7 +201,7 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::findNext() {
 }
 
 ///////////////////////////////////////////////////////////////////
-// Initiate frame work for seed generator
+// Initiate framework for seed generator
 ///////////////////////////////////////////////////////////////////
 template <class SpacePoint>
 void Acts::Legacy::AtlasSeedFinder<SpacePoint>::buildFrameWork() {
@@ -292,7 +236,7 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::buildFrameWork() {
 
   // Build radius sorted containers
   //
-  r_size = int((r_rmax + .1) / r_rstep);
+  r_size = static_cast<int>((r_rmax + .1) / r_rstep);
   r_Sorted = new std::list<Acts::Legacy::SPForSeed<SpacePoint>*>[r_size];
   r_index = new int[r_size];
   r_map = new int[r_size];
@@ -305,7 +249,7 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::buildFrameWork() {
   //
   const float pi2 = 2. * M_PI;
   const int NFmax = 53;
-  const float sFmax = float(NFmax) / pi2;
+  const float sFmax = static_cast<float>(NFmax) / pi2;
   const float m_sFmin = 100. / 60.;
   // make phi-slices for 400MeV tracks, unless ptMin is even smaller
   float ptm = 400.;
@@ -319,7 +263,7 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::buildFrameWork() {
   } else if (m_sF < m_sFmin) {
     m_sF = m_sFmin;
   }
-  m_fNmax = int(pi2 * m_sF);
+  m_fNmax = static_cast<int>(pi2 * m_sF);
   if (m_fNmax >= NFmax) {
     m_fNmax = NFmax - 1;
   }
@@ -440,7 +384,7 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::buildFrameWork() {
 }
 
 ///////////////////////////////////////////////////////////////////
-// Initiate beam frame work for seed generator
+// Initiate beam framework for seed generator
 ///////////////////////////////////////////////////////////////////
 template <class SpacePoint>
 void Acts::Legacy::AtlasSeedFinder<SpacePoint>::buildBeamFrameWork() {
@@ -448,20 +392,20 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::buildBeamFrameWork() {
   double by = m_config.beamPosY;
   double bz = m_config.beamPosZ;
 
-  m_xbeam = float(bx);
-  m_ybeam = float(by);
-  m_zbeam = float(bz);
+  m_xbeam = static_cast<float>(bx);
+  m_ybeam = static_cast<float>(by);
+  m_zbeam = static_cast<float>(bz);
 }
 
 ///////////////////////////////////////////////////////////////////
-// Initiate beam frame work for seed generator
+// Initiate beam framework for seed generator
 ///////////////////////////////////////////////////////////////////
 template <class SpacePoint>
 void Acts::Legacy::AtlasSeedFinder<SpacePoint>::convertToBeamFrameWork(
     SpacePoint* const& sp, float* r) {
-  r[0] = float(sp->x) - m_xbeam;
-  r[1] = float(sp->y) - m_ybeam;
-  r[2] = float(sp->z) - m_zbeam;
+  r[0] = static_cast<float>(sp->x) - m_xbeam;
+  r[1] = static_cast<float>(sp->y) - m_ybeam;
+  r[2] = static_cast<float>(sp->z) - m_zbeam;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -512,7 +456,7 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::fillLists() {
         F += pi2;
       }
 
-      int f = int(F * m_sF);
+      int f = static_cast<int>(F * m_sF);
       if (f < 0) {
         f = m_fNmax;
       } else if (f > m_fNmax) {
@@ -526,20 +470,21 @@ void Acts::Legacy::AtlasSeedFinder<SpacePoint>::fillLists() {
       // assign z-bin a value between 0 and 10 identifying the z-slice of a
       // space-point
       if (Z > 0.) {
-        Z < 250. ? z = 5
-                 : Z < 450. ? z = 6
-                            : Z < 925. ? z = 7
-                                       : Z < 1400. ? z = 8
-                                                   : Z < 2500. ? z = 9 : z = 10;
+        Z < 250.    ? z = 5
+        : Z < 450.  ? z = 6
+        : Z < 925.  ? z = 7
+        : Z < 1400. ? z = 8
+        : Z < 2500. ? z = 9
+                    : z = 10;
       } else {
-        Z > -250.
-            ? z = 5
-            : Z > -450.
-                  ? z = 4
-                  : Z > -925. ? z = 3
-                              : Z > -1400. ? z = 2 : Z > -2500. ? z = 1 : z = 0;
+        Z > -250.    ? z = 5
+        : Z > -450.  ? z = 4
+        : Z > -925.  ? z = 3
+        : Z > -1400. ? z = 2
+        : Z > -2500. ? z = 1
+                     : z = 0;
       }
-      // calculate bin nr "n" for self made r-phi-z sorted 3D array "rfz_Sorted"
+      // calculate bin nr "n" for self-made r-phi-z sorted 3D array "rfz_Sorted"
       // record number of sp in m_nsaz
       int n = f * 11 + z;
       ++m_nsaz;
